@@ -29,9 +29,95 @@
     }
   };
 
+  // src/utils.ts
+  function generateAnimationCSS(animation) {
+    const { duration, easing, properties } = animation;
+    const transforms = [];
+    const styles = [];
+    Object.entries(properties).forEach(([key, value]) => {
+      switch (key) {
+        case "x":
+          transforms.push(`translateX(${value.to}px)`);
+          styles.push(`transform-origin: left center`);
+          break;
+        case "y":
+          transforms.push(`translateY(${value.to}px)`);
+          styles.push(`transform-origin: center top`);
+          break;
+        case "scale":
+          transforms.push(`scale(${value.to})`);
+          styles.push(`transform-origin: center center`);
+          break;
+        case "rotation":
+          transforms.push(`rotate(${value.to}deg)`);
+          styles.push(`transform-origin: center center`);
+          break;
+        case "opacity":
+          styles.push(`opacity: ${value.to}`);
+          break;
+      }
+    });
+    const cssTransform = transforms.length > 0 ? `transform: ${transforms.join(" ")};` : "";
+    const cssStyles = styles.join(";");
+    const keyframeAnimation = generateKeyframes(animation);
+    return `
+    ${keyframeAnimation}
+    animation: customAnimation ${duration}ms ${easing} forwards;
+    ${cssTransform}
+    ${cssStyles}
+  `;
+  }
+  function generateKeyframes(animation) {
+    const { properties } = animation;
+    let fromTransforms = [];
+    let fromStyles = [];
+    let toTransforms = [];
+    let toStyles = [];
+    Object.entries(properties).forEach(([key, value]) => {
+      switch (key) {
+        case "x":
+          fromTransforms.push(`translateX(${value.from}px)`);
+          toTransforms.push(`translateX(${value.to}px)`);
+          break;
+        case "y":
+          fromTransforms.push(`translateY(${value.from}px)`);
+          toTransforms.push(`translateY(${value.to}px)`);
+          break;
+        case "scale":
+          fromTransforms.push(`scale(${value.from})`);
+          toTransforms.push(`scale(${value.to})`);
+          break;
+        case "rotation":
+          fromTransforms.push(`rotate(${value.from}deg)`);
+          toTransforms.push(`rotate(${value.to}deg)`);
+          break;
+        case "opacity":
+          fromStyles.push(`opacity: ${value.from}`);
+          toStyles.push(`opacity: ${value.to}`);
+          break;
+      }
+    });
+    const fromTransform = fromTransforms.length > 0 ? `transform: ${fromTransforms.join(" ")};` : "";
+    const toTransform = toTransforms.length > 0 ? `transform: ${toTransforms.join(" ")};` : "";
+    return `
+    @keyframes customAnimation {
+      from {
+        ${fromTransform}
+        ${fromStyles.join(";")}
+      }
+      to {
+        ${toTransform}
+        ${toStyles.join(";")}
+      }
+    }
+  `;
+  }
+
   // src/ui.ts
   var UI = class {
     constructor() {
+      this.previewElement = null;
+      this.currentAnimation = null;
       this.store = new Store();
       this.container = document.getElementById("app");
       this.init();
@@ -42,6 +128,7 @@
       this.renderAnimationList();
       this.setupMessageHandlers();
       this.updateAnimationList();
+      this.createPreviewElement();
     }
     renderCreateForm() {
       const form = document.createElement("div");
@@ -63,6 +150,10 @@
         <option value="ease-out">Ease Out</option>
         <option value="ease-in-out">Ease In Out</option>
       </select>
+      <div id="previewContainer" class="preview-container">
+        <div id="previewBox" class="preview-box"></div>
+        <button id="previewBtn" class="preview-btn">Preview Animation</button>
+      </div>
       <button id="createBtn">Create Animation</button>
     `;
       const createBtn = form.querySelector("#createBtn");
@@ -87,8 +178,35 @@
             animation: { name, properties: animation }
           }
         }, "*");
+        this.store.setAnimation(name, animation);
         document.getElementById("animationName").value = "";
         this.updateAnimationList();
+      });
+      const previewBtn = form.querySelector("#previewBtn");
+      previewBtn.addEventListener("click", () => {
+        const type = document.getElementById("animationType").value;
+        const duration = parseInt(document.getElementById("duration").value);
+        const easing = document.getElementById("easing").value;
+        const animation = {
+          type,
+          duration,
+          easing,
+          properties: this.getDefaultProperties(type)
+        };
+        this.previewAnimation(animation);
+      });
+      const typeSelect = form.querySelector("#animationType");
+      typeSelect.addEventListener("change", () => {
+        const type = typeSelect.value;
+        const duration = parseInt(document.getElementById("duration").value);
+        const easing = document.getElementById("easing").value;
+        const animation = {
+          type,
+          duration,
+          easing,
+          properties: this.getDefaultProperties(type)
+        };
+        this.previewAnimation(animation);
       });
       this.container.appendChild(form);
     }
@@ -113,6 +231,7 @@
           return;
         }
         const animationName = selected.getAttribute("data-name");
+        if (!animationName) return;
         parent.postMessage({
           pluginMessage: {
             type: "apply-animation",
@@ -130,6 +249,7 @@
         <strong>${name}</strong>
         <br>
         Type: ${preset.type}, Duration: ${preset.duration}ms
+        <button class="preview-btn">Preview</button>
       </div>
     `).join("");
       const items = listContainer.querySelectorAll(".animation-item");
@@ -138,7 +258,33 @@
           items.forEach((i) => i.classList.remove("selected"));
           item.classList.add("selected");
         });
+        const previewBtn = item.querySelector(".preview-btn");
+        previewBtn?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const name = item.getAttribute("data-name");
+          if (name) {
+            this.previewAnimation(name);
+          }
+        });
       });
+    }
+    createPreviewElement() {
+      if (this.previewElement) return;
+      this.previewElement = document.createElement("div");
+      this.previewElement.className = "preview-element";
+      this.previewElement.innerHTML = '<div class="preview-content"></div>';
+      document.body.appendChild(this.previewElement);
+    }
+    previewAnimation(animation) {
+      if (!this.previewElement) return;
+      const preset = typeof animation === "string" ? this.store.getAnimation(animation) : animation;
+      if (!preset) return;
+      const content = this.previewElement.querySelector(".preview-content");
+      content.style.cssText = "";
+      void content.offsetWidth;
+      const css = generateAnimationCSS(preset);
+      content.style.cssText = css;
+      this.currentAnimation = typeof animation === "string" ? animation : null;
     }
     setupMessageHandlers() {
       window.onmessage = (event) => {
@@ -170,13 +316,29 @@
         <h3>Similar Animations Found</h3>
         ${animations.map(([name, nodes]) => `
           <div class="animation-group">
-            <p>${name} (${nodes.length} objects)</p>
-            <button onclick="this.groupAnimation('${name}')">Group Animation</button>
+            <strong>${name}</strong> (${nodes.length} objects)
+            <div class="animation-nodes">
+              ${nodes.map((n) => `<div class="node-item">${n.name}</div>`).join("")}
+            </div>
+            <button class="group-btn">Group Animation</button>
           </div>
         `).join("")}
         <button class="close-dialog">Close</button>
       </div>
     `;
+      const groupBtns = dialog.querySelectorAll(".group-btn");
+      groupBtns.forEach((btn, index) => {
+        btn.addEventListener("click", () => {
+          const [name] = animations[index];
+          parent.postMessage({
+            pluginMessage: {
+              type: "modify-shared",
+              animationName: name,
+              newProperties: this.store.getAnimation(name)
+            }
+          }, "*");
+        });
+      });
       dialog.querySelector(".close-dialog")?.addEventListener("click", () => {
         dialog.remove();
       });

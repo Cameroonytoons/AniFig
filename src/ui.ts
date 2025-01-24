@@ -1,10 +1,12 @@
 import { AnimationPreset, Message } from './types';
 import { Store } from './store';
-import { compareAnimations, generateAnimationCSS } from './utils';
+import { generateAnimationCSS, generateTransitionKeyframes } from './utils';
 
 class UI {
   private store: Store;
   private container: HTMLElement;
+  private previewElement: HTMLElement | null = null;
+  private currentAnimation: string | null = null;
 
   constructor() {
     this.store = new Store();
@@ -18,6 +20,7 @@ class UI {
     this.renderAnimationList();
     this.setupMessageHandlers();
     this.updateAnimationList();
+    this.createPreviewElement();
   }
 
   private renderCreateForm() {
@@ -40,6 +43,10 @@ class UI {
         <option value="ease-out">Ease Out</option>
         <option value="ease-in-out">Ease In Out</option>
       </select>
+      <div id="previewContainer" class="preview-container">
+        <div id="previewBox" class="preview-box"></div>
+        <button id="previewBtn" class="preview-btn">Preview Animation</button>
+      </div>
       <button id="createBtn">Create Animation</button>
     `;
 
@@ -51,9 +58,9 @@ class UI {
         return;
       }
 
-      const type = (document.getElementById('animationType') as HTMLSelectElement).value;
+      const type = (document.getElementById('animationType') as HTMLSelectElement).value as AnimationPreset['type'];
       const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value);
-      const easing = (document.getElementById('easing') as HTMLSelectElement).value;
+      const easing = (document.getElementById('easing') as HTMLSelectElement).value as AnimationPreset['easing'];
 
       const animation: AnimationPreset = {
         type,
@@ -69,8 +76,42 @@ class UI {
         }
       }, '*');
 
+      this.store.setAnimation(name, animation);
       (document.getElementById('animationName') as HTMLInputElement).value = '';
       this.updateAnimationList();
+    });
+
+    const previewBtn = form.querySelector('#previewBtn')!;
+    previewBtn.addEventListener('click', () => {
+      const type = (document.getElementById('animationType') as HTMLSelectElement).value as AnimationPreset['type'];
+      const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value);
+      const easing = (document.getElementById('easing') as HTMLSelectElement).value as AnimationPreset['easing'];
+
+      const animation: AnimationPreset = {
+        type,
+        duration,
+        easing,
+        properties: this.getDefaultProperties(type)
+      };
+
+      this.previewAnimation(animation);
+    });
+
+    // Add type change handler
+    const typeSelect = form.querySelector('#animationType') as HTMLSelectElement;
+    typeSelect.addEventListener('change', () => {
+      const type = typeSelect.value as AnimationPreset['type'];
+      const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value);
+      const easing = (document.getElementById('easing') as HTMLSelectElement).value as AnimationPreset['easing'];
+
+      const animation: AnimationPreset = {
+        type,
+        duration,
+        easing,
+        properties: this.getDefaultProperties(type)
+      };
+
+      this.previewAnimation(animation);
     });
 
     this.container.appendChild(form);
@@ -99,6 +140,8 @@ class UI {
         return;
       }
       const animationName = selected.getAttribute('data-name');
+      if (!animationName) return;
+
       parent.postMessage({ 
         pluginMessage: { 
           type: 'apply-animation',
@@ -119,6 +162,7 @@ class UI {
         <strong>${name}</strong>
         <br>
         Type: ${preset.type}, Duration: ${preset.duration}ms
+        <button class="preview-btn">Preview</button>
       </div>
     `).join('');
 
@@ -128,7 +172,47 @@ class UI {
         items.forEach(i => i.classList.remove('selected'));
         item.classList.add('selected');
       });
+
+      const previewBtn = item.querySelector('.preview-btn');
+      previewBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const name = item.getAttribute('data-name');
+        if (name) {
+          this.previewAnimation(name);
+        }
+      });
     });
+  }
+
+  private createPreviewElement() {
+    if (this.previewElement) return;
+
+    this.previewElement = document.createElement('div');
+    this.previewElement.className = 'preview-element';
+    this.previewElement.innerHTML = '<div class="preview-content"></div>';
+    document.body.appendChild(this.previewElement);
+  }
+
+  private previewAnimation(animation: AnimationPreset | string) {
+    if (!this.previewElement) return;
+
+    const preset = typeof animation === 'string' 
+      ? this.store.getAnimation(animation)
+      : animation;
+
+    if (!preset) return;
+
+    const content = this.previewElement.querySelector('.preview-content') as HTMLDivElement;
+
+    // Reset the animation state
+    content.style.cssText = '';
+    void content.offsetWidth; // Force reflow
+
+    const css = generateAnimationCSS(preset);
+    content.style.cssText = css;
+
+    // Track current animation
+    this.currentAnimation = typeof animation === 'string' ? animation : null;
   }
 
   private setupMessageHandlers() {
@@ -140,7 +224,7 @@ class UI {
     };
   }
 
-  private getDefaultProperties(type: string): { [key: string]: { from: number; to: number } } {
+  private getDefaultProperties(type: AnimationPreset['type']): AnimationPreset['properties'] {
     switch (type) {
       case 'fade':
         return { opacity: { from: 0, to: 1 } };
@@ -155,7 +239,7 @@ class UI {
     }
   }
 
-  private showSimilarAnimations(animations: [string, SceneNode[]][]) {
+  private showSimilarAnimations(animations: [string, Array<{ id: string; name: string }>][]) {
     const dialog = document.createElement('div');
     dialog.className = 'dialog';
     dialog.innerHTML = `
@@ -163,13 +247,30 @@ class UI {
         <h3>Similar Animations Found</h3>
         ${animations.map(([name, nodes]) => `
           <div class="animation-group">
-            <p>${name} (${nodes.length} objects)</p>
-            <button onclick="this.groupAnimation('${name}')">Group Animation</button>
+            <strong>${name}</strong> (${nodes.length} objects)
+            <div class="animation-nodes">
+              ${nodes.map(n => `<div class="node-item">${n.name}</div>`).join('')}
+            </div>
+            <button class="group-btn">Group Animation</button>
           </div>
         `).join('')}
         <button class="close-dialog">Close</button>
       </div>
     `;
+
+    const groupBtns = dialog.querySelectorAll('.group-btn');
+    groupBtns.forEach((btn, index) => {
+      btn.addEventListener('click', () => {
+        const [name] = animations[index];
+        parent.postMessage({
+          pluginMessage: {
+            type: 'modify-shared',
+            animationName: name,
+            newProperties: this.store.getAnimation(name)
+          }
+        }, '*');
+      });
+    });
 
     dialog.querySelector('.close-dialog')?.addEventListener('click', () => {
       dialog.remove();

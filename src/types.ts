@@ -1,9 +1,9 @@
 export interface AnimationPreset {
-  type: string;
+  type: 'fade' | 'slide' | 'scale' | 'rotate';
   duration: number;
-  easing: string;
+  easing: 'ease' | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
   properties: {
-    [key: string]: {
+    [key in 'opacity' | 'x' | 'y' | 'rotation' | 'scale']?: {
       from: number;
       to: number;
     };
@@ -11,7 +11,7 @@ export interface AnimationPreset {
 }
 
 export interface Message {
-  type: string;
+  type: 'create-animation' | 'apply-animation' | 'find-similar' | 'modify-shared';
   animation?: {
     name: string;
     properties: AnimationPreset;
@@ -19,3 +19,13 @@ export interface Message {
   animationName?: string;
   newProperties?: AnimationPreset;
 }
+
+export interface AnimationGroup {
+  name: string;
+  nodes: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+export type SimilarAnimationsResponse = [string, Array<{ id: string; name: string }>][];
