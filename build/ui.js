@@ -35,11 +35,9 @@ var UI = (() => {
     // 5 seconds timeout
     async init() {
       if (this.initialized) {
-        console.log("Store already initialized");
         return;
       }
       if (this.initializationPromise) {
-        console.log("Store initialization already in progress");
         return this.initializationPromise;
       }
       this.initializationPromise = new Promise(async (resolve, reject) => {
@@ -48,27 +46,18 @@ var UI = (() => {
           reject(new Error("Store initialization timed out"));
         }, this.INIT_TIMEOUT);
         try {
-          console.log("Initializing Store");
-          await new Promise((resolve2) => setTimeout(resolve2, 100));
-          console.log("Accessing client storage...");
           const stored = await figma.clientStorage.getAsync("animations");
-          console.log("Retrieved stored animations:", stored ? "Found" : "None");
           if (stored) {
-            console.log("Processing stored animations...");
             Object.entries(stored).forEach(([key, value]) => {
-              console.log(`Loading animation: ${key}`);
               this.animations.set(key, value);
             });
-            console.log(`Loaded ${this.animations.size} animations`);
           }
           this.initialized = true;
           clearTimeout(timeoutId);
-          console.log("Store initialization completed successfully");
           resolve();
         } catch (error) {
-          console.error("Error initializing store:", error);
-          this.initialized = false;
           clearTimeout(timeoutId);
+          this.initialized = false;
           reject(error);
         }
       });
@@ -87,11 +76,7 @@ var UI = (() => {
         throw new Error(`Animation "${name}" already exists`);
       }
       this.animations.set(name, preset);
-      this.persist().catch((error) => {
-        console.error("Failed to persist animation:", error);
-        this.animations.delete(name);
-        throw error;
-      });
+      this.persist();
     }
     updateAnimation(name, preset) {
       this.checkInitialization();
@@ -101,30 +86,16 @@ var UI = (() => {
       if (!this.animations.has(name)) {
         throw new Error(`Animation "${name}" does not exist`);
       }
-      const oldPreset = this.animations.get(name);
       this.animations.set(name, preset);
-      this.persist().catch((error) => {
-        console.error("Failed to persist animation update:", error);
-        if (oldPreset) {
-          this.animations.set(name, oldPreset);
-        }
-        throw error;
-      });
+      this.persist();
     }
     deleteAnimation(name) {
       this.checkInitialization();
       if (!this.animations.has(name)) {
         throw new Error(`Animation "${name}" does not exist`);
       }
-      const oldPreset = this.animations.get(name);
       this.animations.delete(name);
-      this.persist().catch((error) => {
-        console.error("Failed to persist animation deletion:", error);
-        if (oldPreset) {
-          this.animations.set(name, oldPreset);
-        }
-        throw error;
-      });
+      this.persist();
     }
     getAnimationsByGroup(group) {
       this.checkInitialization();
@@ -144,48 +115,29 @@ var UI = (() => {
       var _a, _b, _c, _d;
       const { type, duration, easing, properties } = preset;
       if (!type || !duration || !easing || !properties) {
-        console.warn("Missing required fields in animation preset");
         return false;
       }
       if (duration <= 0 || duration > 1e4) {
-        console.warn("Invalid duration:", duration);
         return false;
       }
       switch (type) {
         case "fade":
-          if (!properties.opacity) {
-            console.warn("Missing opacity property for fade animation");
-            return false;
-          }
+          if (!properties.opacity) return false;
           return properties.opacity.from >= 0 && properties.opacity.to >= 0 && properties.opacity.from <= 1 && properties.opacity.to <= 1;
         case "slide":
           return ("x" in properties || "y" in properties) && (((_a = properties.x) == null ? void 0 : _a.from) !== void 0 || ((_b = properties.y) == null ? void 0 : _b.from) !== void 0) && (((_c = properties.x) == null ? void 0 : _c.to) !== void 0 || ((_d = properties.y) == null ? void 0 : _d.to) !== void 0);
         case "scale":
-          if (!properties.scale) {
-            console.warn("Missing scale property for scale animation");
-            return false;
-          }
+          if (!properties.scale) return false;
           return properties.scale.from > 0 && properties.scale.to > 0;
         case "rotate":
           return "rotation" in properties && properties.rotation !== void 0;
         default:
-          console.warn("Invalid animation type:", type);
           return false;
       }
     }
     async persist() {
-      if (!this.initialized) {
-        throw new Error("Cannot persist: Store not initialized");
-      }
-      try {
-        console.log("Persisting animations to client storage...");
-        const data = Object.fromEntries(this.animations);
-        await figma.clientStorage.setAsync("animations", data);
-        console.log("Successfully persisted animations");
-      } catch (error) {
-        console.error("Failed to persist animations:", error);
-        throw error;
-      }
+      const data = Object.fromEntries(this.animations);
+      await figma.clientStorage.setAsync("animations", data);
     }
     checkInitialization() {
       if (!this.initialized) {
