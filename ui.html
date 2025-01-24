@@ -207,155 +207,207 @@
     </div>
   </div>
 
-  <script>
+<script>
     const MAX_RETRIES = 5;
     let retryCount = 0;
     let loadingTimeout = null;
 
     function showError(message, details) {
-      const errorState = document.getElementById('error-state');
-      const loading = document.getElementById('loading');
+        console.error('Error occurred:', message, details);
+        const errorState = document.getElementById('error-state');
+        const loading = document.getElementById('loading');
 
-      if (errorState) {
-        const errorMessage = errorState.querySelector('p') || document.createElement('p');
-        errorMessage.textContent = message;
-        if (!errorState.contains(errorMessage)) {
-          errorState.appendChild(errorMessage);
+        if (errorState) {
+            const errorMessage = errorState.querySelector('p') || document.createElement('p');
+            errorMessage.textContent = message;
+            if (!errorState.contains(errorMessage)) {
+                errorState.appendChild(errorMessage);
+            }
+            if (details) {
+                const detailsElement = document.createElement('p');
+                detailsElement.style.fontSize = '11px';
+                detailsElement.style.color = '#666';
+                detailsElement.textContent = details;
+                errorState.appendChild(detailsElement);
+            }
+            errorState.style.display = 'block';
         }
-        if (details) {
-          const detailsElement = document.createElement('p');
-          detailsElement.style.fontSize = '11px';
-          detailsElement.style.color = '#666';
-          detailsElement.textContent = details;
-          errorState.appendChild(detailsElement);
-        }
-        errorState.style.display = 'block';
-      }
 
-      if (loading) {
-        loading.style.display = 'none';
-      }
+        if (loading) {
+            loading.style.display = 'none';
+        }
     }
 
     function updateLoadingStatus(message, details) {
-      const status = document.getElementById('loading-status');
-      const detailsElement = document.getElementById('loading-details');
+        console.log('Loading status:', message, details || '');
+        const status = document.getElementById('loading-status');
+        const detailsElement = document.getElementById('loading-details');
 
-      if (status) {
-        status.textContent = message;
-      }
-      if (detailsElement) {
-        detailsElement.textContent = details || '';
-      }
-    }
-
-    async function checkScript(src) {
-      try {
-        const response = await fetch(src, { method: 'HEAD' });
-        if (!response.ok) {
-          throw new Error(`Script ${src} not found (${response.status})`);
+        if (status) {
+            status.textContent = message;
         }
-      } catch (error) {
-        throw new Error(`Failed to check script ${src}: ${error.message}`);
-      }
+        if (detailsElement) {
+            detailsElement.textContent = details || '';
+        }
     }
 
-    async function loadScript(src, retryDelay = 1000) {
-      const maxDelay = 5000;
-
-      while (retryCount < MAX_RETRIES) {
+    async function getPluginResourcePath(filename) {
         try {
-          await checkScript(src);
-          return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = async (error) => {
-              retryCount++;
-              if (retryCount < MAX_RETRIES) {
-                const nextDelay = Math.min(retryDelay * 1.5, maxDelay);
-                updateLoadingStatus(
-                  'Retrying script load...',
-                  `Attempt ${retryCount + 1} of ${MAX_RETRIES}`
-                );
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-                try {
-                  await loadScript(src, nextDelay);
-                  resolve();
-                } catch (retryError) {
-                  reject(retryError);
+            const scripts = document.getElementsByTagName('script');
+            const currentScript = scripts[scripts.length - 1];
+            if (currentScript && currentScript.src) {
+                const scriptPath = currentScript.src;
+                const rootPath = scriptPath.substring(0, scriptPath.lastIndexOf('/') + 1);
+                console.log('Root path from script:', rootPath);
+                return `${rootPath}${filename}`;
+            }
+
+            // Fallback to window location if script path not available
+            const baseUrl = window.location.href.split('/').slice(0, -1).join('/');
+            console.log('Base URL from location:', baseUrl);
+            return `${baseUrl}/${filename}`;
+        } catch (error) {
+            console.error('Error getting resource path:', error);
+            return filename;
+        }
+    }
+
+    async function loadScript(filename) {
+        const maxRetries = 5;
+        const maxDelay = 5000;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+            try {
+                const scriptPath = await getPluginResourcePath(filename);
+                console.log('Attempting to load script from:', scriptPath);
+
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = scriptPath;
+                    script.async = true;
+                    script.crossOrigin = "anonymous";
+
+                    const timeoutId = setTimeout(() => {
+                        script.remove();
+                        const error = new Error(`Script load timed out: ${filename}`);
+                        console.error('Script load timeout:', error);
+                        reject(error);
+                    }, 10000);
+
+                    script.onload = () => {
+                        clearTimeout(timeoutId);
+                        console.log('Script loaded successfully:', filename);
+                        resolve();
+                    };
+
+                    script.onerror = async (error) => {
+                        clearTimeout(timeoutId);
+                        script.remove();
+                        console.error('Script load error:', error);
+
+                        if (++retryCount < maxRetries) {
+                            console.log(`Retrying script load (${retryCount}/${maxRetries})`);
+                            const delay = Math.min(1000 * Math.pow(2, retryCount), maxDelay);
+                            updateLoadingStatus('Retrying script load...', 
+                                `Attempt ${retryCount + 1} of ${maxRetries}`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            try {
+                                await loadScript(filename);
+                                resolve();
+                            } catch (retryError) {
+                                console.error('Retry attempt failed:', retryError);
+                                reject(retryError);
+                            }
+                        } else {
+                            const finalError = new Error(`Failed to load script after ${maxRetries} attempts`);
+                            console.error('Max retries exceeded:', finalError);
+                            reject(finalError);
+                        }
+                    };
+
+                    document.body.appendChild(script);
+                    console.log('Script element added to document:', script.src);
+                });
+            } catch (error) {
+                console.error('Script load attempt failed:', error);
+                if (++retryCount >= maxRetries) {
+                    console.error('All retry attempts failed');
+                    throw error;
                 }
-              } else {
-                reject(new Error(`Failed to load script after ${MAX_RETRIES} attempts`));
-              }
-            };
-            document.body.appendChild(script);
-          });
-        } catch (error) {
-          retryCount++;
-          if (retryCount >= MAX_RETRIES) {
-            throw error;
-          }
-          const nextDelay = Math.min(retryDelay * 1.5, maxDelay);
-          await new Promise(resolve => setTimeout(resolve, nextDelay));
+                const delay = Math.min(1000 * Math.pow(2, retryCount), maxDelay);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
-      }
     }
 
-    // Initialize UI
     document.addEventListener('DOMContentLoaded', async () => {
-      // Set a global timeout
-      loadingTimeout = setTimeout(() => {
-        showError(
-          'Plugin initialization timed out',
-          'The plugin took too long to load. Please check your connection and reload.'
-        );
-      }, 15000);
+        console.log('DOM Content Loaded, starting initialization');
 
-      try {
-        updateLoadingStatus('Checking required files...');
+        loadingTimeout = setTimeout(() => {
+            console.error('Plugin initialization timeout triggered');
+            showError(
+                'Plugin initialization timed out',
+                'The plugin took too long to load. Please check your connection and reload.'
+            );
+        }, 30000);
 
         try {
-          await loadScript('build/ui.js');
-          updateLoadingStatus('UI script loaded', 'Starting plugin initialization...');
+            updateLoadingStatus('Starting initialization...');
+            console.log('Loading UI bundle...');
 
-          if (!window.UI) {
-            throw new Error('UI module not found after script load');
-          }
+            try {
+                await loadScript('build/ui.js');
+                console.log('UI bundle loaded successfully');
+                updateLoadingStatus('UI loaded', 'Initializing plugin...');
 
-          // Clear the timeout since initialization is proceeding
-          if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-          }
+                if (!window.UI) {
+                    const error = new Error('UI module not found after script load');
+                    console.error('UI module missing:', error);
+                    throw error;
+                }
 
-          window.UI.getInstance();
-          updateLoadingStatus('Plugin initialized successfully');
+                if (loadingTimeout) {
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = null;
+                }
 
+                try {
+                    console.log('Initializing UI instance');
+                    window.UI.getInstance();
+                    console.log('UI initialized successfully');
+                    updateLoadingStatus('Plugin initialized successfully');
+                } catch (initError) {
+                    console.error('UI initialization error:', initError);
+                    throw new Error(`UI initialization failed: ${initError.message}`);
+                }
+
+            } catch (error) {
+                console.error('Script loading error:', error);
+                throw new Error(`Script loading failed: ${error.message}`);
+            }
         } catch (error) {
-          throw new Error(`Script loading failed: ${error.message}`);
+            console.error('Initialization error:', error);
+            showError(
+                'Failed to initialize plugin',
+                `Please check your connection and reload. Error: ${error.message}`
+            );
         }
-      } catch (error) {
-        console.error('Initialization error:', error);
-        showError(
-          'Failed to initialize plugin',
-          `Please check your connection and reload. Error: ${error.message}`
-        );
-      }
     });
 
-    // Additional cleanup on unload
     window.addEventListener('unload', () => {
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-      }
+        if (loadingTimeout) {
+            console.log('Cleaning up timeout on unload');
+            clearTimeout(loadingTimeout);
+        }
     });
-    // Global error handler
+
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('Global error:', msg, 'at', lineNo, ':', columnNo);
-      console.error('Stack:', error?.stack);
-      showError('An unexpected error occurred', error?.message);
-      return false;
+        console.error('Global error:', msg, 'at', lineNo, ':', columnNo);
+        console.error('Stack:', error?.stack);
+        showError('An unexpected error occurred', error?.message || msg);
+        return false;
     };
-  </script>
+</script>
 </body>
 </html>
