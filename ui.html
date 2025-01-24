@@ -6,21 +6,27 @@
       font: 12px sans-serif;
       margin: 0;
       padding: 16px;
-      color: #333;
-      background: #fff;
+      color: var(--figma-color-text);
+      background: var(--figma-color-bg);
     }
+
     #app {
       opacity: 0;
       transition: opacity 0.3s ease;
+      display: none;
     }
+
     #app.loaded {
       opacity: 1;
+      display: block;
     }
+
     #loading {
       text-align: center;
       padding: 20px;
       font-weight: 500;
     }
+
     .error-state {
       display: none;
       color: #e34850;
@@ -30,6 +36,129 @@
       border: 1px solid #e34850;
       border-radius: 4px;
       background: #fff5f5;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .error-message {
+      color: #e34850;
+      font-size: 11px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .input-group.error .error-message {
+      display: block;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin: 4px 0;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 4px;
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+    }
+
+    .input-group.error input {
+      border-color: #e34850;
+    }
+
+    button {
+      width: 100%;
+      padding: 8px 16px;
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 4px 0;
+    }
+
+    button:hover {
+      background: var(--figma-color-bg-brand-hover);
+    }
+
+    .preview-container {
+      margin: 16px 0;
+      padding: 16px;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 4px;
+    }
+
+    .preview-box {
+      width: 50px;
+      height: 50px;
+      background: var(--figma-color-bg-brand);
+      margin: 0 auto;
+    }
+
+    .animation-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+
+    .animation-item {
+      padding: 12px;
+      border-bottom: 1px solid var(--figma-color-border);
+      cursor: pointer;
+    }
+
+    .animation-item:hover {
+      background: var(--figma-color-bg-hover);
+    }
+
+    .animation-item.selected {
+      background: var(--figma-color-bg-selected);
+    }
+
+    .group-header {
+      padding: 8px;
+      background: var(--figma-color-bg-secondary);
+      font-weight: 500;
+    }
+
+    .description {
+      margin: 4px 0;
+      color: var(--figma-color-text-secondary);
+      font-size: 11px;
+    }
+
+    .tooltip {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      text-align: center;
+      border-radius: 50%;
+      background: var(--figma-color-bg-secondary);
+      color: var(--figma-color-text-secondary);
+      font-size: 10px;
+      cursor: help;
+      margin-left: 4px;
+    }
+
+    .tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      background: var(--figma-color-bg);
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      max-width: 200px;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
   </style>
 </head>
@@ -41,8 +170,10 @@
     <div id="loading">Initializing Animation Library Manager...</div>
   </div>
   <script>
+    // Enhanced error handling
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('Error:', msg);
+      console.error('Error:', msg, 'at', lineNo, ':', columnNo);
+      console.error('Stack:', error?.stack);
       const errorState = document.getElementById('error-state');
       const loading = document.getElementById('loading');
       if (errorState && loading) {
@@ -51,7 +182,20 @@
       }
       return false;
     };
+
+    // Wait for DOM to be fully loaded before initializing UI
+    document.addEventListener('DOMContentLoaded', function() {
+      // Create and append the UI script
+      const script = document.createElement('script');
+      script.src = 'build/ui.js';
+      script.onerror = function() {
+        const errorState = document.getElementById('error-state');
+        if (errorState) {
+          errorState.style.display = 'block';
+        }
+      };
+      document.body.appendChild(script);
+    });
   </script>
-  <script src="build/ui.js"></script>
 </body>
 </html>

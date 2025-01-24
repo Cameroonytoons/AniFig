@@ -191,57 +191,61 @@
       this.previewElement = null;
       this.currentAnimation = null;
       this.searchInput = null;
+      console.log("UI Constructor: Starting initialization");
       this.store = new Store();
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => {
-          this.initializePlugin();
-        });
-      } else {
-        setTimeout(() => this.initializePlugin(), 0);
-      }
+      this.initializePlugin();
     }
     initializePlugin() {
-      window.onmessage = (event) => {
-        var _a;
-        if (((_a = event.data.pluginMessage) == null ? void 0 : _a.type) === "plugin-ready") {
-          this.initializeDOMAfterLoad();
+      console.log("InitializePlugin: Setting up message handlers");
+      const initializeUI = async () => {
+        try {
+          console.log("InitializeDOMAfterLoad: Starting DOM initialization");
+          this.container = document.getElementById("app");
+          if (!this.container) {
+            throw new Error("Could not find app container");
+          }
+          console.log("Found app container, initializing store");
+          await this.store.init();
+          console.log("Store initialized, rendering UI components");
+          this.renderCreateForm();
+          this.renderAnimationList();
+          this.setupMessageHandlers();
+          this.updateAnimationList();
+          this.createPreviewElement();
+          const loading = document.getElementById("loading");
+          if (loading) {
+            loading.remove();
+          }
+          console.log("UI initialization complete, showing content");
+          this.container.classList.add("loaded");
+        } catch (error) {
+          console.error("Error during initialization:", error);
+          this.showErrorState();
         }
       };
-    }
-    async initializeDOMAfterLoad() {
-      try {
-        if (!document || !document.body) {
-          console.error("Document or body not available");
-          return;
+      window.onmessage = async (event) => {
+        var _a;
+        try {
+          if (((_a = event.data.pluginMessage) == null ? void 0 : _a.type) === "plugin-ready") {
+            console.log("Plugin ready message received, initializing DOM");
+            await initializeUI();
+          }
+        } catch (error) {
+          console.error("Error handling message:", error);
+          this.showErrorState();
         }
-        this.container = document.getElementById("app");
-        if (!this.container) {
-          console.error("Could not find app container");
-          return;
-        }
-        await this.store.init();
-        this.renderCreateForm();
-        this.renderAnimationList();
-        this.setupMessageHandlers();
-        this.updateAnimationList();
-        this.createPreviewElement();
-        const loading = document.getElementById("loading");
-        if (loading) {
-          loading.remove();
-        }
-        this.container.classList.add("loaded");
-      } catch (error) {
-        console.error("Error during initialization:", error);
-        const errorState = document.getElementById("error-state");
-        if (errorState) {
-          errorState.style.display = "block";
-        }
-      }
+      };
+      console.log("Sending initial plugin-ready check");
+      parent.postMessage({ pluginMessage: { type: "check-ready" } }, "*");
     }
     showErrorState() {
       const errorState = document.getElementById("error-state");
       if (errorState) {
         errorState.style.display = "block";
+      }
+      const loading = document.getElementById("loading");
+      if (loading) {
+        loading.style.display = "none";
       }
     }
     renderCreateForm() {
@@ -549,20 +553,14 @@
       this.container.appendChild(dialog);
     }
   };
-  var initUI = () => {
-    try {
-      new UI();
-    } catch (error) {
-      console.error("Error creating UI:", error);
-      const errorState = document.getElementById("error-state");
-      if (errorState) {
-        errorState.style.display = "block";
-      }
+  console.log("Starting UI initialization");
+  try {
+    new UI();
+  } catch (error) {
+    console.error("Error creating UI:", error);
+    const errorState = document.getElementById("error-state");
+    if (errorState) {
+      errorState.style.display = "block";
     }
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initUI);
-  } else {
-    setTimeout(initUI, 0);
   }
 })();

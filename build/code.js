@@ -17,6 +17,9 @@ var animationStore = {};
     figma.ui.onmessage = async (msg) => {
       try {
         switch (msg.type) {
+          case "check-ready":
+            figma.ui.postMessage({ type: "plugin-ready" });
+            break;
           case "create-animation":
             if (msg.animation) {
               const { name, properties } = msg.animation;
@@ -81,10 +84,8 @@ var animationStore = {};
         figma.notify("An error occurred", { error: true });
       }
     };
-    figma.on("run", () => {
-      console.log("Plugin started");
-      figma.ui.postMessage({ type: "plugin-ready" });
-    });
+    console.log("Plugin initialized");
+    figma.ui.postMessage({ type: "plugin-ready" });
     figma.on("selectionchange", () => {
       const nodes = figma.currentPage.selection;
       nodes.forEach((node) => {

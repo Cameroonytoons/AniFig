@@ -13,7 +13,7 @@ export interface AnimationPreset {
 }
 
 export interface Message {
-  type: 'create-animation' | 'apply-animation' | 'find-similar' | 'modify-shared';
+  type: 'check-ready' | 'create-animation' | 'apply-animation' | 'find-similar' | 'modify-shared';
   animation?: {
     name: string;
     properties: AnimationPreset;

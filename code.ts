@@ -24,6 +24,11 @@ let animationStore: { [key: string]: AnimationPreset } = {};
     figma.ui.onmessage = async (msg: Message) => {
       try {
         switch (msg.type) {
+          case 'check-ready':
+            // Respond to ready check
+            figma.ui.postMessage({ type: 'plugin-ready' });
+            break;
+
           case 'create-animation':
             if (msg.animation) {
               const { name, properties } = msg.animation;
@@ -95,11 +100,9 @@ let animationStore: { [key: string]: AnimationPreset } = {};
       }
     };
 
-    // Initialize plugin state
-    figma.on('run', () => {
-      console.log('Plugin started');
-      figma.ui.postMessage({ type: 'plugin-ready' });
-    });
+    // Initialize plugin state and notify UI
+    console.log('Plugin initialized');
+    figma.ui.postMessage({ type: 'plugin-ready' });
 
     // Handle selection changes
     figma.on('selectionchange', () => {
@@ -122,7 +125,7 @@ let animationStore: { [key: string]: AnimationPreset } = {};
   }
 })();
 
-// Helper functions
+// Helper functions remain unchanged
 async function applyAnimation(
   node: SceneNode & { opacity?: number, x?: number, rotation?: number }, 
   animation: AnimationPreset
