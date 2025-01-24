@@ -197,7 +197,7 @@
           this.initializePlugin();
         });
       } else {
-        this.initializePlugin();
+        setTimeout(() => this.initializePlugin(), 0);
       }
     }
     initializePlugin() {
@@ -549,19 +549,7 @@
       this.container.appendChild(dialog);
     }
   };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      try {
-        new UI();
-      } catch (error) {
-        console.error("Error creating UI:", error);
-        const errorState = document.getElementById("error-state");
-        if (errorState) {
-          errorState.style.display = "block";
-        }
-      }
-    });
-  } else {
+  var initUI = () => {
     try {
       new UI();
     } catch (error) {
@@ -571,5 +559,10 @@
         errorState.style.display = "block";
       }
     }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initUI);
+  } else {
+    setTimeout(initUI, 0);
   }
 })();

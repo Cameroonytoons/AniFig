@@ -4,10 +4,10 @@
   "api": "1.0.0",
   "main": "build/code.js",
   "ui": "build/ui.js",
-  "editorType": ["figma", "dev", "figjam"],
+  "editorType": ["dev", "figma", "figjam"],
   "networkAccess": {
     "allowedDomains": ["none"]
   },
   "permissions": ["currentuser"],
-  "capabilities": ["textreview"]
+  "capabilities": ["textreview", "inspect"]
 }

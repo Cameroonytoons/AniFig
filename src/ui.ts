@@ -12,12 +12,13 @@ class UI {
   constructor() {
     this.store = new Store();
 
+    // Ensure DOM is loaded before initialization
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
         this.initializePlugin();
       });
     } else {
-      this.initializePlugin();
+      setTimeout(() => this.initializePlugin(), 0);
     }
   }
 
@@ -424,20 +425,8 @@ class UI {
   }
 }
 
-// Initialize UI only when in proper environment
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    try {
-      new UI();
-    } catch (error) {
-      console.error("Error creating UI:", error);
-      const errorState = document.getElementById("error-state");
-      if (errorState) {
-        errorState.style.display = "block";
-      }
-    }
-  });
-} else {
+// Initialize UI with proper error handling
+const initUI = () => {
   try {
     new UI();
   } catch (error) {
@@ -447,4 +436,11 @@ if (document.readyState === "loading") {
       errorState.style.display = "block";
     }
   }
+};
+
+// Ensure proper initialization timing
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initUI);
+} else {
+  setTimeout(initUI, 0);
 }
