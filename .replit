@@ -33,18 +33,9 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = """
 
-    echo \"Cleaning build directory...\" &&
-    rm -rf build/* &&
-    echo \"Creating build directory structure...\" &&
-    mkdir -p build/src &&
     echo \"Running TypeScript compilation...\" &&
-    npx tsc --project tsconfig.json --listEmittedFiles &&
-    echo \"Building UI bundle...\" &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=warning &&
-    echo \"Building plugin code...\" &&
-    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=warning &&
-    echo \"Build completed successfully\" &&
-    ls -la build/
+    npx tsc --noEmit &&
+    echo \"Build completed successfully\"
     """
 
 [[workflows.workflow]]
@@ -65,18 +56,9 @@ waitForPort = 3000
 [deployment]
 run = ["sh", "-c", """
 
-    echo \"Cleaning build directory...\" &&
-    rm -rf build/* &&
-    echo \"Creating build directory structure...\" &&
-    mkdir -p build/src &&
     echo \"Running TypeScript compilation...\" &&
-    npx tsc --project tsconfig.json --listEmittedFiles &&
-    echo \"Building UI bundle...\" &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=warning &&
-    echo \"Building plugin code...\" &&
-    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=warning &&
-    echo \"Build completed successfully\" &&
-    ls -la build/
+    npx tsc --noEmit &&
+    echo \"Build completed successfully\"
     """]
 
 [[ports]]

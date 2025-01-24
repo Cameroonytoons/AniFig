@@ -1,5 +1,12 @@
 import { AnimationPreset } from './types';
 
+export class AnimationError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'AnimationError';
+  }
+}
+
 export class Store {
   private animations: Map<string, AnimationPreset & { description?: string; group?: string }> = new Map();
   private initialized: boolean = false;
@@ -28,10 +35,26 @@ export class Store {
       await this.initializationPromise;
     } catch (error) {
       this.initializationPromise = null;
-      throw error;
+      if (error instanceof AnimationError) {
+        throw error;
+      }
+      throw new AnimationError(
+        `Failed to initialize animation library: ${this.getErrorMessage(error)}`,
+        'INIT_FAILED'
+      );
     }
 
     return this.initializationPromise;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'An unexpected error occurred while initializing the animation library';
   }
 
   private async initializeWithRetry(attempt: number = 1): Promise<void> {
@@ -42,7 +65,10 @@ export class Store {
 
       const timeoutPromise = new Promise<void>((_, reject) => {
         this.initTimeoutId = setTimeout(() => {
-          reject(new Error('Store initialization timed out'));
+          reject(new AnimationError(
+            'Animation library initialization timed out. Please try again.',
+            'INIT_TIMEOUT'
+          ));
         }, this.INIT_TIMEOUT);
       });
 
@@ -70,7 +96,13 @@ export class Store {
       }
 
       this.initialized = false;
-      throw new Error(`Failed to initialize store after ${this.MAX_RETRIES} attempts`);
+      if (error instanceof AnimationError) {
+        throw error;
+      }
+      throw new AnimationError(
+        `Failed to initialize animation library after ${this.MAX_RETRIES} attempts. Please check your connection and try again.`,
+        'MAX_RETRIES_EXCEEDED'
+      );
     }
   }
 
@@ -79,20 +111,41 @@ export class Store {
       console.log('Store: Loading stored animations');
       const stored = await figma.clientStorage.getAsync('animations');
 
-      if (stored && typeof stored === 'object') {
-        console.log('Store: Processing stored animations');
-        Object.entries(stored).forEach(([key, value]) => {
+      if (!stored) {
+        console.log('Store: No stored animations found, starting fresh');
+        return;
+      }
+
+      if (typeof stored !== 'object' || stored === null) {
+        throw new AnimationError(
+          'Unable to load animations: Invalid data format detected',
+          'INVALID_STORAGE_FORMAT'
+        );
+      }
+
+      console.log('Store: Processing stored animations');
+      Object.entries(stored).forEach(([key, value]) => {
+        try {
           if (this.validateAnimationName(key) && this.validateAnimation(value as AnimationPreset)) {
             this.animations.set(key, value as AnimationPreset);
           } else {
             console.warn(`Store: Skipping invalid animation "${key}"`);
           }
-        });
-        console.log(`Store: Loaded ${this.animations.size} animations`);
-      }
+        } catch (error) {
+          console.warn(`Store: Error processing animation "${key}":`, error);
+        }
+      });
+
+      console.log(`Store: Loaded ${this.animations.size} animations`);
     } catch (error) {
       console.error('Store: Error during initialization:', error);
-      throw error;
+      if (error instanceof AnimationError) {
+        throw error;
+      }
+      throw new AnimationError(
+        `Unable to load animations: ${this.getErrorMessage(error)}`,
+        'STORAGE_ERROR'
+      );
     }
   }
 
