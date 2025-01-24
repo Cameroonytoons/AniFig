@@ -116,16 +116,15 @@ class UI {
       const errorMessage = errorState.querySelector('p');
       if (errorMessage) {
         errorMessage.textContent = error?.message || 'An unexpected error occurred';
+      }
 
-        // Add stack trace for debugging if available
-        if (error?.stack) {
-          const stackTrace = document.createElement('pre');
-          stackTrace.style.fontSize = '11px';
-          stackTrace.style.overflow = 'auto';
-          stackTrace.style.maxHeight = '200px';
-          stackTrace.textContent = error.stack;
-          errorState.appendChild(stackTrace);
-        }
+      if (error?.stack) {
+        const stackTrace = document.createElement('pre');
+        stackTrace.style.fontSize = '11px';
+        stackTrace.style.overflow = 'auto';
+        stackTrace.style.maxHeight = '200px';
+        stackTrace.textContent = error.stack;
+        errorState.appendChild(stackTrace);
       }
     }
 
@@ -535,11 +534,12 @@ window.addEventListener('load', () => {
     console.error("Error creating UI:", error);
     const errorState = document.getElementById("error-state");
     if (errorState) {
+      errorState.style.display = "block";
       const message = errorState.querySelector("p");
-      if (message && error instanceof Error) {
-        message.textContent = `Initialization failed: ${error.message}`;
-      } else {
-        message.textContent = "Initialization failed: Unknown error occurred";
+      if (message) {
+        message.textContent = error instanceof Error 
+          ? `Initialization failed: ${error.message}`
+          : "Initialization failed: Unknown error occurred";
       }
     }
   }

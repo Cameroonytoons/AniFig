@@ -10,7 +10,12 @@
     "outDir": "build",
     "rootDir": ".",
     "sourceMap": true,
-    "noEmit": true
+    "declaration": false,
+    "resolveJsonModule": true,
+    "noEmit": false,
+    "allowJs": true,
+    "checkJs": false
   },
-  "include": ["code.ts", "src/**/*.ts"]
+  "include": ["code.ts", "src/**/*.ts"],
+  "exclude": ["node_modules"]
 }

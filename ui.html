@@ -27,6 +27,42 @@
       text-align: center;
       padding: 20px;
       font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+    }
+
+    .loader {
+      border: 2px solid var(--figma-color-bg-secondary);
+      border-top: 2px solid var(--figma-color-bg-brand);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin: 16px auto;
+    }
+
+    .loading-step {
+      font-size: 12px;
+      color: var(--figma-color-text);
+      margin: 4px 0;
+      opacity: 0.7;
+    }
+
+    .loading-step.completed {
+      color: var(--figma-color-text-secondary);
+      text-decoration: line-through;
+    }
+
+    .loading-step.error {
+      color: #e34850;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     .error-state {
@@ -42,6 +78,9 @@
 
     .section {
       margin-bottom: 24px;
+      padding: 16px;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 4px;
     }
 
     .input-group {
@@ -89,18 +128,25 @@
       background: var(--figma-color-bg-brand-hover);
     }
 
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .preview-container {
       margin: 16px 0;
       padding: 16px;
       border: 1px solid var(--figma-color-border);
       border-radius: 4px;
+      text-align: center;
     }
 
     .preview-box {
       width: 50px;
       height: 50px;
       background: var(--figma-color-bg-brand);
-      margin: 0 auto;
+      margin: 0 auto 16px;
+      border-radius: 4px;
     }
 
     .animation-list {
@@ -115,6 +161,11 @@
       padding: 12px;
       border-bottom: 1px solid var(--figma-color-border);
       cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .animation-item:last-child {
+      border-bottom: none;
     }
 
     .animation-item:hover {
@@ -129,6 +180,7 @@
       padding: 8px;
       background: var(--figma-color-bg-secondary);
       font-weight: 500;
+      border-bottom: 1px solid var(--figma-color-border);
     }
 
     .description {
@@ -166,30 +218,24 @@
       transform: translateX(-50%);
       top: 100%;
       margin-top: 8px;
-    }
-    .loader {
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid var(--figma-color-bg-brand);
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 1s linear infinite;
-      margin: 10px auto;
+      white-space: pre-wrap;
     }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .retry-button {
+      max-width: 120px;
+      margin: 16px auto;
+      display: block;
     }
 
-    #loading-status, #loading-details {
-      text-align: center;
-      margin: 8px 0;
-    }
-
-    #loading-details {
+    .error-stack {
+      font-family: monospace;
       font-size: 11px;
-      color: var(--figma-color-text-secondary);
+      margin-top: 16px;
+      padding: 8px;
+      background: rgba(227, 72, 80, 0.1);
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
     }
   </style>
 </head>
@@ -197,20 +243,41 @@
   <div id="error-state" class="error-state">
     <h3>Error</h3>
     <p></p>
+    <button id="retry-button" class="retry-button">Retry</button>
   </div>
 
   <div id="app">
     <div id="loading">
       <div class="loader"></div>
-      <p id="loading-status">Initializing Animation Library Manager...</p>
+      <div id="loading-steps">
+        <div class="loading-step" data-step="init">Initializing plugin...</div>
+        <div class="loading-step" data-step="scripts">Loading required scripts...</div>
+        <div class="loading-step" data-step="store">Setting up data store...</div>
+        <div class="loading-step" data-step="ui">Preparing user interface...</div>
+      </div>
     </div>
   </div>
 
 <script>
-    const INIT_TIMEOUT = 10000; // 10 seconds timeout
-    const RETRY_ATTEMPTS = 3;
-    const RETRY_DELAY = 1000;
+    const INIT_TIMEOUT = 15000; // Increased to 15 seconds
+    const RETRY_ATTEMPTS = 5;   // Increased retry attempts
+    const RETRY_DELAY = 2000;   // Increased delay between retries
     let loadingTimeout = null;
+    let currentStep = 'init';
+
+    function updateLoadingStep(step, status = 'pending') {
+        const steps = document.querySelectorAll('.loading-step');
+        steps.forEach(s => {
+            if (s.dataset.step === step) {
+                s.classList.remove('completed', 'error');
+                if (status === 'completed') {
+                    s.classList.add('completed');
+                } else if (status === 'error') {
+                    s.classList.add('error');
+                }
+            }
+        });
+    }
 
     function showError(message, details = '') {
         console.error('Error occurred:', message, details);
@@ -218,6 +285,7 @@
         const loading = document.getElementById('loading');
 
         if (errorState) {
+            errorState.style.display = 'block';
             const errorMessage = errorState.querySelector('p');
             if (errorMessage) {
                 errorMessage.textContent = message;
@@ -228,17 +296,30 @@
                     errorState.appendChild(detailsElem);
                 }
             }
-            errorState.style.display = 'block';
+
+            const retryButton = document.getElementById('retry-button');
+            if (retryButton) {
+                retryButton.onclick = () => {
+                    errorState.style.display = 'none';
+                    if (loading) loading.style.display = 'block';
+                    initializePlugin();
+                };
+            }
         }
 
         if (loading) {
             loading.style.display = 'none';
         }
+
+        updateLoadingStep(currentStep, 'error');
     }
 
     async function loadScript(filename, attempt = 1) {
         try {
-            const scriptPath = window.location.href.split('/').slice(0, -1).join('/') + '/' + filename;
+            currentStep = 'scripts';
+            updateLoadingStep('scripts');
+
+            const scriptPath = `${window.location.href.split('/').slice(0, -1).join('/')}/${filename}`;
             console.log(`Loading script (attempt ${attempt}/${RETRY_ATTEMPTS}):`, scriptPath);
 
             return new Promise((resolve, reject) => {
@@ -255,6 +336,7 @@
                 script.onload = () => {
                     clearTimeout(timeoutId);
                     console.log('Script loaded successfully:', filename);
+                    updateLoadingStep('scripts', 'completed');
                     resolve();
                 };
 
@@ -264,6 +346,7 @@
                     console.error(`Script load error (attempt ${attempt}):`, error);
 
                     if (attempt < RETRY_ATTEMPTS) {
+                        updateLoadingStep('scripts');
                         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                         try {
                             await loadScript(filename, attempt + 1);
@@ -272,6 +355,7 @@
                             reject(new Error(`Failed to load script after ${attempt} attempts: ${retryError.message}`));
                         }
                     } else {
+                        updateLoadingStep('scripts', 'error');
                         reject(new Error(`Failed to load script after ${RETRY_ATTEMPTS} attempts`));
                     }
                 };
@@ -287,67 +371,42 @@
         }
     }
 
-    class ScriptLoader {
-        constructor() {
-            this.queue = [];
-            this.loading = false;
+    async function initializePlugin() {
+        currentStep = 'init';
+        updateLoadingStep('init');
+
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
         }
-
-        async add(filename) {
-            return new Promise((resolve, reject) => {
-                this.queue.push({ filename, resolve, reject });
-                this.processNext();
-            });
-        }
-
-        async processNext() {
-            if (this.loading || this.queue.length === 0) return;
-
-            this.loading = true;
-            const { filename, resolve, reject } = this.queue.shift();
-
-            try {
-                await loadScript(filename);
-                resolve();
-            } catch (error) {
-                reject(error);
-            } finally {
-                this.loading = false;
-                this.processNext();
-            }
-        }
-    }
-
-    async function initializeUI() {
-        if (!window.UI) {
-            throw new Error('UI module not loaded. Please check the build process.');
-        }
-
-        try {
-            const ui = window.UI.getInstance();
-            if (!ui) {
-                throw new Error('Failed to create UI instance');
-            }
-            return true;
-        } catch (error) {
-            throw new Error(`UI initialization failed: ${error.message}`);
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const loader = new ScriptLoader();
 
         loadingTimeout = setTimeout(() => {
             showError(
                 'Plugin initialization timed out',
-                'The plugin took too long to initialize. Please try reloading.'
+                'The plugin took too long to initialize. Please try again.'
             );
         }, INIT_TIMEOUT);
 
         try {
-            await loader.add('build/ui.js');
-            await initializeUI();
+            updateLoadingStep('init', 'completed');
+            await loadScript('build/ui.js');
 
+            currentStep = 'store';
+            updateLoadingStep('store');
+
+            if (!window.UI) {
+                throw new Error('UI module not loaded correctly');
+            }
+
+            const ui = window.UI.getInstance();
+            if (!ui) {
+                throw new Error('Failed to create UI instance');
+            }
+
+            updateLoadingStep('store', 'completed');
+            currentStep = 'ui';
+            updateLoadingStep('ui');
+
+            // Clear timeout if everything succeeded
             if (loadingTimeout) {
                 clearTimeout(loadingTimeout);
             }
@@ -355,6 +414,7 @@
             const app = document.getElementById('app');
             if (app) {
                 app.classList.add('loaded');
+                updateLoadingStep('ui', 'completed');
             }
         } catch (error) {
             const errorMessage = error.message || 'Unknown error occurred';
@@ -363,8 +423,11 @@
                 'Failed to initialize plugin',
                 errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage
             );
+            throw error;
         }
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', initializePlugin);
 
     window.addEventListener('unload', () => {
         if (loadingTimeout) {

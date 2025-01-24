@@ -29,27 +29,33 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = """
 
-    echo \"Creating build directory...\" &&
-    mkdir -p build &&
+    echo \"Cleaning build directory...\" &&
+    rm -rf build/* &&
+    echo \"Creating build directory structure...\" &&
+    mkdir -p build/src &&
     echo \"Running TypeScript compilation...\" &&
-    npx tsc --listEmittedFiles &&
+    npx tsc --project tsconfig.json --listEmittedFiles &&
     echo \"Building UI bundle...\" &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=info &&
+    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=warning &&
     echo \"Building plugin code...\" &&
-    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=info &&
-    echo \"Build completed successfully\"
+    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=warning &&
+    echo \"Build completed successfully\" &&
+    ls -la build/
     """
 
 [deployment]
 run = ["sh", "-c", """
 
-    echo \"Creating build directory...\" &&
-    mkdir -p build &&
+    echo \"Cleaning build directory...\" &&
+    rm -rf build/* &&
+    echo \"Creating build directory structure...\" &&
+    mkdir -p build/src &&
     echo \"Running TypeScript compilation...\" &&
-    npx tsc --listEmittedFiles &&
+    npx tsc --project tsconfig.json --listEmittedFiles &&
     echo \"Building UI bundle...\" &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=info &&
+    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --global-name=UI --outfile=build/ui.js --sourcemap --log-level=warning &&
     echo \"Building plugin code...\" &&
-    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=info &&
-    echo \"Build completed successfully\"
+    npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js --sourcemap --log-level=warning &&
+    echo \"Build completed successfully\" &&
+    ls -la build/
     """]

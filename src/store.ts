@@ -5,41 +5,66 @@ export class Store {
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private INIT_TIMEOUT = 5000; // 5 seconds timeout
+  private cleanupHandlers: (() => void)[] = [];
 
   async init() {
+    console.log('Store: Starting initialization');
     if (this.initialized) {
+      console.log('Store: Already initialized');
       return;
     }
 
     if (this.initializationPromise) {
+      console.log('Store: Using existing initialization promise');
       return this.initializationPromise;
     }
 
     this.initializationPromise = new Promise(async (resolve, reject) => {
       const timeoutId = setTimeout(() => {
+        console.error('Store: Initialization timed out');
+        this.cleanup();
         this.initialized = false;
         reject(new Error('Store initialization timed out'));
       }, this.INIT_TIMEOUT);
 
       try {
+        console.log('Store: Loading stored animations');
         const stored = await figma.clientStorage.getAsync('animations');
         if (stored) {
+          console.log('Store: Processing stored animations');
           Object.entries(stored).forEach(([key, value]) => {
             this.animations.set(key, value as AnimationPreset);
           });
+          console.log(`Store: Loaded ${this.animations.size} animations`);
         }
 
         this.initialized = true;
         clearTimeout(timeoutId);
+        console.log('Store: Initialization completed successfully');
         resolve();
       } catch (error) {
+        console.error('Store: Initialization failed:', error);
         clearTimeout(timeoutId);
+        this.cleanup();
         this.initialized = false;
         reject(error);
       }
     });
 
     return this.initializationPromise;
+  }
+
+  private cleanup() {
+    console.log('Store: Running cleanup');
+    this.cleanupHandlers.forEach(handler => {
+      try {
+        handler();
+      } catch (error) {
+        console.error('Store: Cleanup handler failed:', error);
+      }
+    });
+    this.cleanupHandlers = [];
+    this.animations.clear();
   }
 
   getAnimation(name: string): AnimationPreset | undefined {
@@ -109,47 +134,71 @@ export class Store {
     const { type, duration, easing, properties } = preset;
 
     if (!type || !duration || !easing || !properties) {
+      console.warn('Store: Invalid animation - missing required fields');
       return false;
     }
 
     if (duration <= 0 || duration > 10000) {
+      console.warn('Store: Invalid animation - duration out of range');
       return false;
     }
 
     switch (type) {
       case 'fade':
-        if (!properties.opacity) return false;
+        if (!properties.opacity) {
+          console.warn('Store: Invalid fade animation - missing opacity');
+          return false;
+        }
         return properties.opacity.from >= 0 &&
                properties.opacity.to >= 0 &&
                properties.opacity.from <= 1 &&
                properties.opacity.to <= 1;
 
       case 'slide':
-        return ('x' in properties || 'y' in properties) &&
-               (properties.x?.from !== undefined || properties.y?.from !== undefined) &&
-               (properties.x?.to !== undefined || properties.y?.to !== undefined);
+        const hasValidPosition = ('x' in properties || 'y' in properties) &&
+                               (properties.x?.from !== undefined || properties.y?.from !== undefined) &&
+                               (properties.x?.to !== undefined || properties.y?.to !== undefined);
+        if (!hasValidPosition) {
+          console.warn('Store: Invalid slide animation - invalid position properties');
+        }
+        return hasValidPosition;
 
       case 'scale':
-        if (!properties.scale) return false;
+        if (!properties.scale) {
+          console.warn('Store: Invalid scale animation - missing scale');
+          return false;
+        }
         return properties.scale.from > 0 &&
                properties.scale.to > 0;
 
       case 'rotate':
-        return 'rotation' in properties &&
-               properties.rotation !== undefined;
+        const hasValidRotation = 'rotation' in properties &&
+                                properties.rotation !== undefined;
+        if (!hasValidRotation) {
+          console.warn('Store: Invalid rotate animation - missing rotation');
+        }
+        return hasValidRotation;
 
       default:
+        console.warn('Store: Invalid animation type:', type);
         return false;
     }
   }
 
   private async persist() {
-    const data = Object.fromEntries(this.animations);
-    await figma.clientStorage.setAsync('animations', data);
+    try {
+      const data = Object.fromEntries(this.animations);
+      await figma.clientStorage.setAsync('animations', data);
+      console.log('Store: Successfully persisted animations');
+    } catch (error) {
+      console.error('Store: Failed to persist animations:', error);
+      throw error;
+    }
   }
 
   private checkInitialization() {
     if (!this.initialized) {
+      console.error('Store: Attempted to use store before initialization');
       throw new Error('Store not initialized. Call init() first.');
     }
   }

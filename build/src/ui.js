@@ -1,56 +1,123 @@
 import { Store } from './store';
 import { generateAnimationCSS } from './utils';
+let instance = null;
 class UI {
     constructor() {
         this.container = null;
         this.previewElement = null;
         this.currentAnimation = null;
         this.searchInput = null;
+        this.initializationTimeout = null; // Using ReturnType instead of NodeJS.Timeout
+        this.initialized = false;
+        if (instance) {
+            console.warn('UI instance already exists');
+            return instance;
+        }
+        instance = this;
         this.store = new Store();
-        this.initializePlugin();
     }
-    initializePlugin() {
-        // Wait for Figma's plugin environment to be ready
-        window.onmessage = (event) => {
-            var _a;
-            if (((_a = event.data.pluginMessage) === null || _a === void 0 ? void 0 : _a.type) === 'plugin-ready') {
-                this.initializeDOMAfterLoad();
+    static getInstance() {
+        try {
+            if (!instance) {
+                instance = new UI();
+                instance.initializePlugin().catch(error => {
+                    console.error('Failed to initialize UI:', error);
+                    instance = null;
+                    throw error;
+                });
             }
-        };
+            return instance;
+        }
+        catch (error) {
+            console.error('Error getting UI instance:', error);
+            return null;
+        }
+    }
+    async initializePlugin() {
+        console.log('InitializePlugin: Starting setup');
+        try {
+            if (this.initialized) {
+                return;
+            }
+            // Clear any existing error state
+            const errorState = document.getElementById('error-state');
+            if (errorState) {
+                errorState.style.display = 'none';
+            }
+            // Set up error handlers first
+            window.onerror = (msg, url, lineNo, columnNo, error) => {
+                console.error('Global error:', msg, 'at', lineNo, ':', columnNo);
+                console.error('Stack:', error === null || error === void 0 ? void 0 : error.stack);
+                this.showErrorState(new Error(msg));
+                return false;
+            };
+            // Wait for store initialization
+            await this.store.init();
+            await this.initializeDOMAfterLoad();
+            this.initialized = true;
+            // Clear timeout if initialization succeeded
+            if (this.initializationTimeout) {
+                clearTimeout(this.initializationTimeout);
+            }
+        }
+        catch (error) {
+            console.error('Failed to initialize plugin:', error);
+            this.showErrorState(error);
+            throw error;
+        }
     }
     async initializeDOMAfterLoad() {
+        console.log('InitializeDOMAfterLoad: Starting DOM initialization');
         try {
-            // Wait for both document and window to be ready
-            if (typeof document === 'undefined' || !document.body) {
-                console.error('Document not available');
-                return;
-            }
-            // Initialize container
-            this.container = document.getElementById('app');
+            this.container = document.getElementById("app");
             if (!this.container) {
-                console.error('Could not find app container');
-                return;
+                throw new Error('Could not find app container');
             }
-            await this.store.init();
-            this.renderCreateForm();
-            this.renderAnimationList();
-            this.setupMessageHandlers();
-            this.updateAnimationList();
-            this.createPreviewElement();
-            // Remove loading indicator and show UI
-            const loading = document.getElementById('loading');
+            console.log('Found app container, rendering UI components');
+            await Promise.all([
+                this.renderCreateForm(),
+                this.renderAnimationList(),
+                this.setupMessageHandlers(),
+                this.updateAnimationList(),
+                this.createPreviewElement()
+            ]);
+            const loading = document.getElementById("loading");
             if (loading) {
                 loading.remove();
             }
-            this.container.classList.add('loaded');
+            console.log('UI initialization complete, showing content');
+            this.container.classList.add("loaded");
         }
         catch (error) {
-            console.error('Error during initialization:', error);
-            const errorState = document.getElementById('error-state');
-            if (errorState) {
-                errorState.style.display = 'block';
+            console.error('Failed to initialize DOM:', error);
+            this.showErrorState(error);
+            throw error;
+        }
+    }
+    showErrorState(error) {
+        const errorState = document.getElementById('error-state');
+        if (errorState) {
+            errorState.style.display = 'block';
+            const errorMessage = errorState.querySelector('p');
+            if (errorMessage) {
+                errorMessage.textContent = (error === null || error === void 0 ? void 0 : error.message) || 'An unexpected error occurred';
+            }
+            if (error === null || error === void 0 ? void 0 : error.stack) {
+                const stackTrace = document.createElement('pre');
+                stackTrace.style.fontSize = '11px';
+                stackTrace.style.overflow = 'auto';
+                stackTrace.style.maxHeight = '200px';
+                stackTrace.textContent = error.stack;
+                errorState.appendChild(stackTrace);
             }
         }
+        // Hide loading indicator if visible
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.style.display = 'none';
+        }
+        // Log error for debugging
+        console.error('UI Error:', error);
     }
     renderCreateForm() {
         const form = document.createElement('div');
@@ -274,14 +341,11 @@ class UI {
     createPreviewElement() {
         if (this.previewElement)
             return;
-        // Create preview container
         this.previewElement = document.createElement('div');
         this.previewElement.className = 'preview-element';
-        // Create preview content
         const content = document.createElement('div');
         content.className = 'preview-content';
         this.previewElement.appendChild(content);
-        // Create and configure canvas with performance attributes
         try {
             const canvas = document.createElement('canvas');
             canvas.setAttribute('willReadFrequently', 'true');
@@ -290,9 +354,7 @@ class UI {
         }
         catch (error) {
             console.warn('Canvas creation failed:', error);
-            // Continue without canvas as it's not critical for core functionality
         }
-        // Append to document only after all elements are configured
         if (document.body) {
             document.body.appendChild(this.previewElement);
         }
@@ -317,9 +379,32 @@ class UI {
     }
     setupMessageHandlers() {
         window.onmessage = (event) => {
+            var _a, _b;
             const msg = event.data.pluginMessage;
-            if (msg.type === 'similar-found') {
-                this.showSimilarAnimations(msg.animations);
+            try {
+                if (msg.type === 'plugin-ready') {
+                    // Handle plugin ready state
+                    console.log('Plugin ready event received:', msg);
+                    if ((_a = msg.state) === null || _a === void 0 ? void 0 : _a.isInitialized) {
+                        (_b = this.container) === null || _b === void 0 ? void 0 : _b.classList.add('loaded');
+                        const loading = document.getElementById('loading');
+                        if (loading) {
+                            loading.remove();
+                        }
+                    }
+                }
+                else if (msg.type === 'initialization-error') {
+                    // Handle initialization errors from plugin
+                    console.error('Plugin initialization error:', msg.error);
+                    this.showErrorState(new Error(msg.error || 'Failed to initialize plugin'));
+                }
+                else if (msg.type === 'similar-found') {
+                    this.showSimilarAnimations(msg.animations);
+                }
+            }
+            catch (error) {
+                console.error('Error handling plugin message:', error);
+                this.showErrorState(new Error('Failed to process plugin message'));
             }
         };
     }
@@ -375,17 +460,31 @@ class UI {
         this.container.appendChild(dialog);
     }
 }
-// Initialize UI only when in Figma's plugin environment
-if (typeof parent !== 'undefined' && typeof parent.postMessage === 'function') {
+console.log('UI module loaded, setting up global instance');
+window.UI = UI;
+// Initialize when the window loads
+window.addEventListener('load', () => {
     try {
-        new UI();
+        console.log('Window loaded, creating UI instance');
+        const ui = UI.getInstance();
+        if (!ui) {
+            throw new Error('Failed to create UI instance');
+        }
+        console.log('UI initialized successfully');
     }
     catch (error) {
-        console.error('Error creating UI:', error);
-        const errorState = document.getElementById('error-state');
+        console.error("Error creating UI:", error);
+        const errorState = document.getElementById("error-state");
         if (errorState) {
-            errorState.style.display = 'block';
+            errorState.style.display = "block";
+            const message = errorState.querySelector("p");
+            if (message) {
+                message.textContent = error instanceof Error
+                    ? `Initialization failed: ${error.message}`
+                    : "Initialization failed: Unknown error occurred";
+            }
         }
     }
-}
+});
+export default UI;
 //# sourceMappingURL=ui.js.map
