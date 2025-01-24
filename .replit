@@ -27,7 +27,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx tsc && npx esbuild code.ts --bundle --platform=node --outfile=build/code.js && npx esbuild src/ui.ts --bundle --platform=browser --outfile=build/ui.js"
+args = "mkdir -p build && npx tsc && npx esbuild code.ts --bundle --platform=node --outfile=build/code.js && npx esbuild src/ui.ts --bundle --platform=browser --outfile=build/ui.js"
 
 [deployment]
-run = ["sh", "-c", "npx tsc && npx esbuild code.ts --bundle --platform=node --outfile=build/code.js && npx esbuild src/ui.ts --bundle --platform=browser --outfile=build/ui.js"]
+run = ["sh", "-c", "mkdir -p build && npx tsc && npx esbuild code.ts --bundle --platform=node --outfile=build/code.js && npx esbuild src/ui.ts --bundle --platform=browser --outfile=build/ui.js"]
