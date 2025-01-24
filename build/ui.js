@@ -58,10 +58,14 @@
     searchAnimations(query) {
       const lowercaseQuery = query.toLowerCase();
       return Array.from(this.animations.entries()).filter(
-        ([name, preset]) => name.toLowerCase().includes(lowercaseQuery) || preset.description?.toLowerCase().includes(lowercaseQuery) || preset.group?.toLowerCase().includes(lowercaseQuery)
+        ([name, preset]) => {
+          var _a, _b;
+          return name.toLowerCase().includes(lowercaseQuery) || ((_a = preset.description) == null ? void 0 : _a.toLowerCase().includes(lowercaseQuery)) || ((_b = preset.group) == null ? void 0 : _b.toLowerCase().includes(lowercaseQuery));
+        }
       );
     }
     validateAnimation(preset) {
+      var _a, _b, _c, _d;
       const { type, duration, easing, properties } = preset;
       if (!type || !duration || !easing || !properties) {
         return false;
@@ -74,7 +78,7 @@
           if (!properties.opacity) return false;
           return properties.opacity.from >= 0 && properties.opacity.to >= 0 && properties.opacity.from <= 1 && properties.opacity.to <= 1;
         case "slide":
-          return ("x" in properties || "y" in properties) && (properties.x?.from !== void 0 || properties.y?.from !== void 0) && (properties.x?.to !== void 0 || properties.y?.to !== void 0);
+          return ("x" in properties || "y" in properties) && (((_a = properties.x) == null ? void 0 : _a.from) !== void 0 || ((_b = properties.y) == null ? void 0 : _b.from) !== void 0) && (((_c = properties.x) == null ? void 0 : _c.to) !== void 0 || ((_d = properties.y) == null ? void 0 : _d.to) !== void 0);
         case "scale":
           if (!properties.scale) return false;
           return properties.scale.from > 0 && properties.scale.to > 0;
@@ -187,45 +191,45 @@
       this.previewElement = null;
       this.currentAnimation = null;
       this.searchInput = null;
-      console.log("UI Constructor initialized");
       this.store = new Store();
-      this.initializeDOMAfterLoad();
+      this.initializePlugin();
+    }
+    initializePlugin() {
+      window.onmessage = (event) => {
+        var _a;
+        if (((_a = event.data.pluginMessage) == null ? void 0 : _a.type) === "plugin-ready") {
+          this.initializeDOMAfterLoad();
+        }
+      };
     }
     async initializeDOMAfterLoad() {
-      console.log("DOM Load State:", document.readyState);
-      if (document.readyState === "loading") {
-        console.log("Waiting for DOMContentLoaded event");
-        document.addEventListener("DOMContentLoaded", () => {
-          console.log("DOMContentLoaded event fired");
-          this.initialize();
-        });
-      } else {
-        console.log("DOM already loaded, initializing directly");
-        await this.initialize();
-      }
-    }
-    async initialize() {
       try {
-        console.log("Starting UI initialization");
-        if (!document || !document.body) {
-          console.error("Document or body not available");
+        if (typeof document === "undefined" || !document.body) {
+          console.error("Document not available");
           return;
         }
         this.container = document.getElementById("app");
         if (!this.container) {
-          console.error("Could not find app container element");
+          console.error("Could not find app container");
           return;
         }
         await this.store.init();
-        console.log("Store initialized successfully");
         this.renderCreateForm();
         this.renderAnimationList();
         this.setupMessageHandlers();
         this.updateAnimationList();
         this.createPreviewElement();
-        console.log("UI initialization completed");
+        const loading = document.getElementById("loading");
+        if (loading) {
+          loading.remove();
+        }
+        this.container.classList.add("loaded");
       } catch (error) {
-        console.error("Error during UI initialization:", error);
+        console.error("Error during initialization:", error);
+        const errorState = document.getElementById("error-state");
+        if (errorState) {
+          errorState.style.display = "block";
+        }
       }
     }
     renderCreateForm() {
@@ -281,21 +285,22 @@
     `;
       const createBtn = form.querySelector("#createBtn");
       createBtn.addEventListener("click", () => {
+        var _a, _b, _c;
         const nameInput = document.getElementById("animationName");
         const descriptionInput = document.getElementById("animationDescription");
         const groupInput = document.getElementById("animationGroup");
         const name = nameInput.value.trim();
         if (!name) {
-          nameInput.parentElement?.classList.add("error");
+          (_a = nameInput.parentElement) == null ? void 0 : _a.classList.add("error");
           return;
         }
-        nameInput.parentElement?.classList.remove("error");
+        (_b = nameInput.parentElement) == null ? void 0 : _b.classList.remove("error");
         try {
           const type = document.getElementById("animationType").value;
           const duration = parseInt(document.getElementById("duration").value);
           const easing = document.getElementById("easing").value;
           if (isNaN(duration) || duration <= 0) {
-            document.getElementById("duration").parentElement?.classList.add("error");
+            (_c = document.getElementById("duration").parentElement) == null ? void 0 : _c.classList.add("error");
             return;
           }
           const animation = {
@@ -431,7 +436,7 @@
           item.classList.add("selected");
         });
         const previewBtn = item.querySelector(".preview-btn");
-        previewBtn?.addEventListener("click", (e) => {
+        previewBtn == null ? void 0 : previewBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           const name = item.getAttribute("data-name");
           if (name) {
@@ -495,6 +500,7 @@
       }
     }
     showSimilarAnimations(animations) {
+      var _a;
       const dialog = document.createElement("div");
       dialog.className = "dialog";
       dialog.innerHTML = `
@@ -525,19 +531,21 @@
           }, "*");
         });
       });
-      dialog.querySelector(".close-dialog")?.addEventListener("click", () => {
+      (_a = dialog.querySelector(".close-dialog")) == null ? void 0 : _a.addEventListener("click", () => {
         dialog.remove();
       });
       this.container.appendChild(dialog);
     }
   };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("DOMContentLoaded event listener triggered");
+  if (typeof parent !== "undefined" && typeof parent.postMessage === "function") {
+    try {
       new UI();
-    });
-  } else {
-    console.log("Document already loaded, initializing UI");
-    new UI();
+    } catch (error) {
+      console.error("Error creating UI:", error);
+      const errorState = document.getElementById("error-state");
+      if (errorState) {
+        errorState.style.display = "block";
+      }
+    }
   }
 })();

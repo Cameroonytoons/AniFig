@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "outDir": "build",
     "rootDir": ".",
-    "sourceMap": true
+    "sourceMap": true,
+    "noEmit": true
   },
   "include": ["code.ts", "src/**/*.ts"]
 }

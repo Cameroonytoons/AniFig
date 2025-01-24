@@ -6,48 +6,50 @@ class UI {
         this.previewElement = null;
         this.currentAnimation = null;
         this.searchInput = null;
-        console.log('UI Constructor initialized');
         this.store = new Store();
-        this.initializeDOMAfterLoad();
+        this.initializePlugin();
+    }
+    initializePlugin() {
+        // Wait for Figma's plugin environment to be ready
+        window.onmessage = (event) => {
+            var _a;
+            if (((_a = event.data.pluginMessage) === null || _a === void 0 ? void 0 : _a.type) === 'plugin-ready') {
+                this.initializeDOMAfterLoad();
+            }
+        };
     }
     async initializeDOMAfterLoad() {
-        console.log('DOM Load State:', document.readyState);
-        if (document.readyState === 'loading') {
-            console.log('Waiting for DOMContentLoaded event');
-            document.addEventListener('DOMContentLoaded', () => {
-                console.log('DOMContentLoaded event fired');
-                this.initialize();
-            });
-        }
-        else {
-            console.log('DOM already loaded, initializing directly');
-            await this.initialize();
-        }
-    }
-    async initialize() {
         try {
-            console.log('Starting UI initialization');
-            // Wait for document to be ready
-            if (!document || !document.body) {
-                console.error('Document or body not available');
+            // Wait for both document and window to be ready
+            if (typeof document === 'undefined' || !document.body) {
+                console.error('Document not available');
                 return;
             }
+            // Initialize container
             this.container = document.getElementById('app');
             if (!this.container) {
-                console.error('Could not find app container element');
+                console.error('Could not find app container');
                 return;
             }
             await this.store.init();
-            console.log('Store initialized successfully');
             this.renderCreateForm();
             this.renderAnimationList();
             this.setupMessageHandlers();
             this.updateAnimationList();
             this.createPreviewElement();
-            console.log('UI initialization completed');
+            // Remove loading indicator and show UI
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.remove();
+            }
+            this.container.classList.add('loaded');
         }
         catch (error) {
-            console.error('Error during UI initialization:', error);
+            console.error('Error during initialization:', error);
+            const errorState = document.getElementById('error-state');
+            if (errorState) {
+                errorState.style.display = 'block';
+            }
         }
     }
     renderCreateForm() {
@@ -373,15 +375,17 @@ class UI {
         this.container.appendChild(dialog);
     }
 }
-// Initialize UI only after the document is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOMContentLoaded event listener triggered');
+// Initialize UI only when in Figma's plugin environment
+if (typeof parent !== 'undefined' && typeof parent.postMessage === 'function') {
+    try {
         new UI();
-    });
-}
-else {
-    console.log('Document already loaded, initializing UI');
-    new UI();
+    }
+    catch (error) {
+        console.error('Error creating UI:', error);
+        const errorState = document.getElementById('error-state');
+        if (errorState) {
+            errorState.style.display = 'block';
+        }
+    }
 }
 //# sourceMappingURL=ui.js.map

@@ -8,5 +8,6 @@
   "networkAccess": {
     "allowedDomains": ["none"]
   },
-  "permissions": ["currentuser"]
+  "permissions": ["currentuser"],
+  "capabilities": ["textreview", "inspect"]
 }
