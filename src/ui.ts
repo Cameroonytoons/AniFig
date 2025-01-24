@@ -431,10 +431,13 @@ class UI {
   }
 }
 
-console.log('Starting UI initialization');
+// Export the UI class and initialize it when the window loads
+export default UI;
+
 window.onload = () => {
   try {
     new UI();
+    console.log('UI initialized successfully');
   } catch (error) {
     console.error("Error creating UI:", error);
     const errorState = document.getElementById("error-state");

@@ -553,14 +553,17 @@
       this.container.appendChild(dialog);
     }
   };
-  console.log("Starting UI initialization");
-  try {
-    new UI();
-  } catch (error) {
-    console.error("Error creating UI:", error);
-    const errorState = document.getElementById("error-state");
-    if (errorState) {
-      errorState.style.display = "block";
+  var ui_default = UI;
+  window.onload = () => {
+    try {
+      new UI();
+      console.log("UI initialized successfully");
+    } catch (error) {
+      console.error("Error creating UI:", error);
+      const errorState = document.getElementById("error-state");
+      if (errorState) {
+        errorState.style.display = "block";
+      }
     }
-  }
+  };
 })();
