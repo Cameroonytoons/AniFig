@@ -27,58 +27,94 @@ class UI {
     const form = document.createElement('div');
     form.className = 'section';
     form.innerHTML = `
-      <h3>Create Animation</h3>
-      <input type="text" id="animationName" placeholder="Animation Name" required>
-      <select id="animationType">
-        <option value="fade">Fade</option>
-        <option value="slide">Slide</option>
-        <option value="scale">Scale</option>
-        <option value="rotate">Rotate</option>
-      </select>
-      <input type="number" id="duration" placeholder="Duration (ms)" value="300" min="0">
-      <select id="easing">
-        <option value="ease">Ease</option>
-        <option value="linear">Linear</option>
-        <option value="ease-in">Ease In</option>
-        <option value="ease-out">Ease Out</option>
-        <option value="ease-in-out">Ease In Out</option>
-      </select>
+      <h3>Create Animation
+        <span class="tooltip" data-tooltip="Create a new named animation preset">?</span>
+      </h3>
+      <div class="input-group">
+        <input type="text" id="animationName" placeholder="Animation Name" required>
+        <div class="error-message">Please enter a unique animation name</div>
+      </div>
+      <div class="input-group">
+        <select id="animationType">
+          <option value="fade">Fade</option>
+          <option value="slide">Slide</option>
+          <option value="scale">Scale</option>
+          <option value="rotate">Rotate</option>
+        </select>
+        <span class="tooltip" data-tooltip="Choose the type of animation effect">?</span>
+      </div>
+      <div class="input-group">
+        <input type="number" id="duration" placeholder="Duration (ms)" value="300" min="0">
+        <span class="tooltip" data-tooltip="Animation duration in milliseconds">?</span>
+      </div>
+      <div class="input-group">
+        <select id="easing">
+          <option value="ease">Ease</option>
+          <option value="linear">Linear</option>
+          <option value="ease-in">Ease In</option>
+          <option value="ease-out">Ease Out</option>
+          <option value="ease-in-out">Ease In Out</option>
+        </select>
+        <span class="tooltip" data-tooltip="Select the animation timing function">?</span>
+      </div>
       <div id="previewContainer" class="preview-container">
         <div id="previewBox" class="preview-box"></div>
-        <button id="previewBtn" class="preview-btn">Preview Animation</button>
+        <button id="previewBtn" class="preview-btn">
+          Preview Animation
+          <span class="tooltip" data-tooltip="See how the animation will look">?</span>
+        </button>
       </div>
       <button id="createBtn">Create Animation</button>
     `;
 
     const createBtn = form.querySelector('#createBtn')!;
     createBtn.addEventListener('click', () => {
-      const name = (document.getElementById('animationName') as HTMLInputElement).value;
+      const nameInput = document.getElementById('animationName') as HTMLInputElement;
+      const name = nameInput.value.trim();
+
       if (!name) {
-        alert('Please enter an animation name');
+        nameInput.parentElement?.classList.add('error');
         return;
       }
+      nameInput.parentElement?.classList.remove('error');
 
-      const type = (document.getElementById('animationType') as HTMLSelectElement).value as AnimationPreset['type'];
-      const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value);
-      const easing = (document.getElementById('easing') as HTMLSelectElement).value as AnimationPreset['easing'];
+      try {
+        const type = (document.getElementById('animationType') as HTMLSelectElement).value as AnimationPreset['type'];
+        const duration = parseInt((document.getElementById('duration') as HTMLInputElement).value);
+        const easing = (document.getElementById('easing') as HTMLSelectElement).value as AnimationPreset['easing'];
 
-      const animation: AnimationPreset = {
-        type,
-        duration,
-        easing,
-        properties: this.getDefaultProperties(type)
-      };
-
-      parent.postMessage({ 
-        pluginMessage: {
-          type: 'create-animation',
-          animation: { name, properties: animation }
+        if (isNaN(duration) || duration <= 0) {
+          (document.getElementById('duration') as HTMLInputElement).parentElement?.classList.add('error');
+          return;
         }
-      }, '*');
 
-      this.store.setAnimation(name, animation);
-      (document.getElementById('animationName') as HTMLInputElement).value = '';
-      this.updateAnimationList();
+        const animation: AnimationPreset = {
+          type,
+          duration,
+          easing,
+          properties: this.getDefaultProperties(type)
+        };
+
+        this.store.setAnimation(name, animation);
+        nameInput.value = '';
+        this.updateAnimationList();
+
+        parent.postMessage({ 
+          pluginMessage: {
+            type: 'create-animation',
+            animation: { name, properties: animation }
+          }
+        }, '*');
+
+      } catch (error) {
+        if (error instanceof Error) {
+          const errorElement = document.createElement('div');
+          errorElement.className = 'error-message';
+          errorElement.textContent = error.message;
+          form.appendChild(errorElement);
+          setTimeout(() => errorElement.remove(), 3000);
+        }
+      }
     });
 
     const previewBtn = form.querySelector('#previewBtn')!;
@@ -97,7 +133,6 @@ class UI {
       this.previewAnimation(animation);
     });
 
-    // Add type change handler
     const typeSelect = form.querySelector('#animationType') as HTMLSelectElement;
     typeSelect.addEventListener('change', () => {
       const type = typeSelect.value as AnimationPreset['type'];
@@ -204,14 +239,12 @@ class UI {
 
     const content = this.previewElement.querySelector('.preview-content') as HTMLDivElement;
 
-    // Reset the animation state
     content.style.cssText = '';
-    void content.offsetWidth; // Force reflow
+    void content.offsetWidth; 
 
     const css = generateAnimationCSS(preset);
     content.style.cssText = css;
 
-    // Track current animation
     this.currentAnimation = typeof animation === 'string' ? animation : null;
   }
 
