@@ -5,11 +5,12 @@ import { generateAnimationCSS } from './utils';
 let instance: UI | null = null;
 
 class UI {
-  private store: Store = new Store(); // Initialize store directly
+  private store!: Store;  // Using definite assignment assertion
   private container: HTMLElement | null = null;
   private previewElement: HTMLElement | null = null;
   private currentAnimation: string | null = null;
   private searchInput: HTMLInputElement | null = null;
+  private initializationTimeout: ReturnType<typeof setTimeout> | null = null;  // Using ReturnType instead of NodeJS.Timeout
 
   constructor() {
     console.log('UI Constructor: Starting initialization');
@@ -18,6 +19,7 @@ class UI {
       return instance;
     }
     instance = this;
+    this.store = new Store();
     this.initializePlugin();
   }
 
@@ -31,11 +33,28 @@ class UI {
   private async initializePlugin() {
     console.log('InitializePlugin: Starting setup');
     try {
+      // Clear any existing error state
+      const errorState = document.getElementById('error-state');
+      if (errorState) {
+        errorState.style.display = 'none';
+      }
+
+      // Set up error handlers first
+      window.onerror = (msg, url, lineNo, columnNo, error) => {
+        console.error('Global error:', msg, 'at', lineNo, ':', columnNo);
+        console.error('Stack:', error?.stack);
+        this.showErrorState(new Error(msg as string));
+        return false;
+      };
+
       // Setup initial message handler
       window.onmessage = (event) => {
         const msg = event.data.pluginMessage;
         if (msg?.type === 'plugin-ready') {
-          this.continueInitialization();
+          this.continueInitialization().catch((error) => {
+            console.error('Failed to continue initialization:', error);
+            this.showErrorState(error as Error);
+          });
         }
       };
 
@@ -43,9 +62,11 @@ class UI {
       parent.postMessage({ pluginMessage: { type: 'check-ready' } }, '*');
 
       // Set timeout for initialization
-      setTimeout(() => {
+      this.initializationTimeout = setTimeout(() => {
         if (!this.container?.classList.contains('loaded')) {
-          throw new Error('Plugin initialization timeout');
+          const error = new Error('Plugin initialization timeout');
+          console.error(error);
+          this.showErrorState(error);
         }
       }, 5000);
 
@@ -60,34 +81,45 @@ class UI {
       console.log('Plugin ready, initializing store');
       await this.store.init();
       await this.initializeDOMAfterLoad();
+
+      // Clear timeout if initialization succeeded
+      if (this.initializationTimeout) {
+        clearTimeout(this.initializationTimeout);
+      }
     } catch (error) {
       console.error('Failed to continue initialization:', error);
       this.showErrorState(error as Error);
+      throw error; // Re-throw to be caught by the caller
     }
   }
 
   private async initializeDOMAfterLoad() {
     console.log('InitializeDOMAfterLoad: Starting DOM initialization');
-    this.container = document.getElementById("app");
+    try {
+      this.container = document.getElementById("app");
 
-    if (!this.container) {
-      throw new Error('Could not find app container');
+      if (!this.container) {
+        throw new Error('Could not find app container');
+      }
+
+      console.log('Found app container, rendering UI components');
+      this.renderCreateForm();
+      this.renderAnimationList();
+      this.setupMessageHandlers();
+      this.updateAnimationList();
+      this.createPreviewElement();
+
+      const loading = document.getElementById("loading");
+      if (loading) {
+        loading.remove();
+      }
+
+      console.log('UI initialization complete, showing content');
+      this.container.classList.add("loaded");
+    } catch (error) {
+      console.error('Failed to initialize DOM:', error);
+      this.showErrorState(error as Error);
     }
-
-    console.log('Found app container, rendering UI components');
-    this.renderCreateForm();
-    this.renderAnimationList();
-    this.setupMessageHandlers();
-    this.updateAnimationList();
-    this.createPreviewElement();
-
-    const loading = document.getElementById("loading");
-    if (loading) {
-      loading.remove();
-    }
-
-    console.log('UI initialization complete, showing content');
-    this.container.classList.add("loaded");
   }
 
   private showErrorState(error?: Error) {
