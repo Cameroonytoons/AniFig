@@ -1,11 +1,40 @@
 "use strict";
-(() => {
+var UI = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/ui.ts
+  var ui_exports = {};
+  __export(ui_exports, {
+    default: () => ui_default
+  });
+
   // src/store.ts
   var Store = class {
     constructor() {
       this.animations = /* @__PURE__ */ new Map();
+      this.initialized = false;
     }
     async init() {
+      if (this.initialized) {
+        console.log("Store already initialized");
+        return;
+      }
       try {
         console.log("Initializing Store");
         const stored = await figma.clientStorage.getAsync("animations");
@@ -16,16 +45,24 @@
             this.animations.set(key, value);
           });
         }
+        this.initialized = true;
         console.log("Store initialization completed");
       } catch (error) {
         console.error("Error initializing store:", error);
+        this.initialized = false;
         throw error;
       }
     }
     getAnimation(name) {
+      if (!this.initialized) {
+        throw new Error("Store not initialized");
+      }
       return this.animations.get(name);
     }
     setAnimation(name, preset) {
+      if (!this.initialized) {
+        throw new Error("Store not initialized");
+      }
       if (!this.validateAnimation(preset)) {
         throw new Error("Invalid animation preset");
       }
@@ -185,63 +222,88 @@
   }
 
   // src/ui.ts
-  var UI = class {
+  var instance = null;
+  var UI = class _UI {
     constructor() {
+      this.store = new Store();
+      // Initialize store directly
       this.container = null;
       this.previewElement = null;
       this.currentAnimation = null;
       this.searchInput = null;
       console.log("UI Constructor: Starting initialization");
-      this.store = new Store();
+      if (instance) {
+        console.warn("UI instance already exists");
+        return instance;
+      }
+      instance = this;
       this.initializePlugin();
     }
-    initializePlugin() {
-      console.log("InitializePlugin: Setting up message handlers");
-      const initializeUI = async () => {
-        try {
-          console.log("InitializeDOMAfterLoad: Starting DOM initialization");
-          this.container = document.getElementById("app");
-          if (!this.container) {
-            throw new Error("Could not find app container");
-          }
-          console.log("Found app container, initializing store");
-          await this.store.init();
-          console.log("Store initialized, rendering UI components");
-          this.renderCreateForm();
-          this.renderAnimationList();
-          this.setupMessageHandlers();
-          this.updateAnimationList();
-          this.createPreviewElement();
-          const loading = document.getElementById("loading");
-          if (loading) {
-            loading.remove();
-          }
-          console.log("UI initialization complete, showing content");
-          this.container.classList.add("loaded");
-        } catch (error) {
-          console.error("Error during initialization:", error);
-          this.showErrorState();
-        }
-      };
-      window.onmessage = async (event) => {
-        var _a;
-        try {
-          if (((_a = event.data.pluginMessage) == null ? void 0 : _a.type) === "plugin-ready") {
-            console.log("Plugin ready message received, initializing DOM");
-            await initializeUI();
-          }
-        } catch (error) {
-          console.error("Error handling message:", error);
-          this.showErrorState();
-        }
-      };
-      console.log("Sending initial plugin-ready check");
-      parent.postMessage({ pluginMessage: { type: "check-ready" } }, "*");
+    static getInstance() {
+      if (!instance) {
+        instance = new _UI();
+      }
+      return instance;
     }
-    showErrorState() {
+    async initializePlugin() {
+      console.log("InitializePlugin: Starting setup");
+      try {
+        window.onmessage = (event) => {
+          const msg = event.data.pluginMessage;
+          if ((msg == null ? void 0 : msg.type) === "plugin-ready") {
+            this.continueInitialization();
+          }
+        };
+        parent.postMessage({ pluginMessage: { type: "check-ready" } }, "*");
+        setTimeout(() => {
+          var _a;
+          if (!((_a = this.container) == null ? void 0 : _a.classList.contains("loaded"))) {
+            throw new Error("Plugin initialization timeout");
+          }
+        }, 5e3);
+      } catch (error) {
+        console.error("Failed to initialize plugin:", error);
+        this.showErrorState(error);
+      }
+    }
+    async continueInitialization() {
+      try {
+        console.log("Plugin ready, initializing store");
+        await this.store.init();
+        await this.initializeDOMAfterLoad();
+      } catch (error) {
+        console.error("Failed to continue initialization:", error);
+        this.showErrorState(error);
+      }
+    }
+    async initializeDOMAfterLoad() {
+      console.log("InitializeDOMAfterLoad: Starting DOM initialization");
+      this.container = document.getElementById("app");
+      if (!this.container) {
+        throw new Error("Could not find app container");
+      }
+      console.log("Found app container, rendering UI components");
+      this.renderCreateForm();
+      this.renderAnimationList();
+      this.setupMessageHandlers();
+      this.updateAnimationList();
+      this.createPreviewElement();
+      const loading = document.getElementById("loading");
+      if (loading) {
+        loading.remove();
+      }
+      console.log("UI initialization complete, showing content");
+      this.container.classList.add("loaded");
+    }
+    showErrorState(error) {
       const errorState = document.getElementById("error-state");
       if (errorState) {
         errorState.style.display = "block";
+        if (error) {
+          const errorMessage = document.createElement("p");
+          errorMessage.textContent = error.message;
+          errorState.appendChild(errorMessage);
+        }
       }
       const loading = document.getElementById("loading");
       if (loading) {
@@ -553,10 +615,12 @@
       this.container.appendChild(dialog);
     }
   };
-  var ui_default = UI;
-  window.onload = () => {
+  console.log("UI module loaded, setting up global instance");
+  window.UI = UI;
+  window.addEventListener("load", () => {
     try {
-      new UI();
+      console.log("Window loaded, creating UI instance");
+      UI.getInstance();
       console.log("UI initialized successfully");
     } catch (error) {
       console.error("Error creating UI:", error);
@@ -565,5 +629,8 @@
         errorState.style.display = "block";
       }
     }
-  };
+  });
+  var ui_default = UI;
+  return __toCommonJS(ui_exports);
 })();
+//# sourceMappingURL=ui.js.map

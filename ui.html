@@ -149,6 +149,7 @@
       font-size: 10px;
       cursor: help;
       margin-left: 4px;
+      position: relative;
     }
 
     .tooltip:hover::after {
@@ -161,58 +162,95 @@
       max-width: 200px;
       z-index: 1000;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      left: 50%;
+      transform: translateX(-50%);
+      top: 100%;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
   <div id="error-state" class="error-state">
-    Failed to initialize plugin. Please try reloading.
+    <h3>Error</h3>
+    <p>Failed to initialize plugin. Please try reloading.</p>
   </div>
+
   <div id="app">
-    <div id="loading">Initializing Animation Library Manager...</div>
+    <div id="loading">
+      <p>Initializing Animation Library Manager...</p>
+      <p id="loading-status"></p>
+    </div>
   </div>
+
   <script>
+    // Global error handler
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('Error:', msg, 'at', lineNo, ':', columnNo);
+      console.error('Global error:', msg, 'at', lineNo, ':', columnNo);
       console.error('Stack:', error?.stack);
-      const errorState = document.getElementById('error-state');
-      const loading = document.getElementById('loading');
-      if (errorState && loading) {
-        loading.style.display = 'none';
-        errorState.style.display = 'block';
-      }
+      showError('An unexpected error occurred. Please reload the plugin.');
       return false;
     };
 
-    function loadScript() {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = 'build/ui.js';
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => {
-          const errorState = document.getElementById('error-state');
-          if (errorState) {
-            errorState.style.display = 'block';
-          }
-          reject(new Error('Failed to load UI script'));
-        };
-        document.body.appendChild(script);
-      });
+    // Utility function to show errors
+    function showError(message) {
+      const errorState = document.getElementById('error-state');
+      const loading = document.getElementById('loading');
+
+      if (errorState) {
+        const errorMessage = errorState.querySelector('p') || document.createElement('p');
+        errorMessage.textContent = message;
+        if (!errorState.contains(errorMessage)) {
+          errorState.appendChild(errorMessage);
+        }
+        errorState.style.display = 'block';
+      }
+
+      if (loading) {
+        loading.style.display = 'none';
+      }
     }
 
-    // Wait for DOM to be fully loaded before initializing UI
-    document.addEventListener('DOMContentLoaded', async () => {
+    // Update loading status
+    function updateLoadingStatus(message) {
+      const status = document.getElementById('loading-status');
+      if (status) {
+        status.textContent = message;
+      }
+    }
+
+    // Initialize UI
+    document.addEventListener('DOMContentLoaded', () => {
       try {
-        await loadScript();
-        console.log('UI script loaded successfully');
+        updateLoadingStatus('Loading UI script...');
+        console.log('DOM loaded, creating script element');
+
+        const script = document.createElement('script');
+        script.src = 'build/ui.js';
+
+        script.onload = () => {
+          console.log('UI script loaded successfully');
+          updateLoadingStatus('Initializing UI...');
+
+          // Small delay to ensure script is fully loaded
+          setTimeout(() => {
+            try {
+              window.UI.getInstance();
+            } catch (error) {
+              console.error('Error initializing UI:', error);
+              showError('Failed to initialize UI. Please reload the plugin.');
+            }
+          }, 100);
+        };
+
+        script.onerror = (error) => {
+          console.error('Failed to load UI script:', error);
+          showError('Failed to load required scripts. Please check your connection and reload.');
+        };
+
+        document.body.appendChild(script);
       } catch (error) {
-        console.error('Failed to load UI:', error);
-        const errorState = document.getElementById('error-state');
-        if (errorState) {
-          errorState.style.display = 'block';
-        }
+        console.error('Error during initialization:', error);
+        showError('Initialization failed. Please reload the plugin.');
       }
     });
   </script>

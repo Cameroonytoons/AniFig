@@ -2,8 +2,14 @@ import { AnimationPreset } from './types';
 
 export class Store {
   private animations: Map<string, AnimationPreset & { description?: string; group?: string }> = new Map();
+  private initialized: boolean = false;
 
   async init() {
+    if (this.initialized) {
+      console.log('Store already initialized');
+      return;
+    }
+
     try {
       console.log('Initializing Store');
       const stored = await figma.clientStorage.getAsync('animations');
@@ -16,18 +22,27 @@ export class Store {
         });
       }
 
+      this.initialized = true;
       console.log('Store initialization completed');
     } catch (error) {
       console.error('Error initializing store:', error);
+      this.initialized = false;
       throw error;
     }
   }
 
   getAnimation(name: string): AnimationPreset | undefined {
+    if (!this.initialized) {
+      throw new Error('Store not initialized');
+    }
     return this.animations.get(name);
   }
 
   setAnimation(name: string, preset: AnimationPreset & { description?: string; group?: string }) {
+    if (!this.initialized) {
+      throw new Error('Store not initialized');
+    }
+
     // Validate animation parameters
     if (!this.validateAnimation(preset)) {
       throw new Error('Invalid animation preset');
