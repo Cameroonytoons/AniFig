@@ -212,8 +212,8 @@
     const RETRY_DELAY = 1000;
     let loadingTimeout = null;
 
-    function showError(message) {
-        console.error('Error occurred:', message);
+    function showError(message, details = '') {
+        console.error('Error occurred:', message, details);
         const errorState = document.getElementById('error-state');
         const loading = document.getElementById('loading');
 
@@ -221,6 +221,12 @@
             const errorMessage = errorState.querySelector('p');
             if (errorMessage) {
                 errorMessage.textContent = message;
+                if (details) {
+                    const detailsElem = document.createElement('p');
+                    detailsElem.textContent = details;
+                    detailsElem.style.fontSize = '11px';
+                    errorState.appendChild(detailsElem);
+                }
             }
             errorState.style.display = 'block';
         }
@@ -233,6 +239,7 @@
     async function loadScript(filename, attempt = 1) {
         try {
             const scriptPath = window.location.href.split('/').slice(0, -1).join('/') + '/' + filename;
+            console.log(`Loading script (attempt ${attempt}/${RETRY_ATTEMPTS}):`, scriptPath);
 
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
@@ -242,17 +249,19 @@
 
                 const timeoutId = setTimeout(() => {
                     script.remove();
-                    reject(new Error(`Script load timed out: ${filename}`));
+                    reject(new Error(`Script load timed out after ${INIT_TIMEOUT}ms: ${filename}`));
                 }, INIT_TIMEOUT);
 
                 script.onload = () => {
                     clearTimeout(timeoutId);
+                    console.log('Script loaded successfully:', filename);
                     resolve();
                 };
 
                 script.onerror = async (error) => {
                     clearTimeout(timeoutId);
                     script.remove();
+                    console.error(`Script load error (attempt ${attempt}):`, error);
 
                     if (attempt < RETRY_ATTEMPTS) {
                         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
@@ -260,10 +269,10 @@
                             await loadScript(filename, attempt + 1);
                             resolve();
                         } catch (retryError) {
-                            reject(retryError);
+                            reject(new Error(`Failed to load script after ${attempt} attempts: ${retryError.message}`));
                         }
                     } else {
-                        reject(error);
+                        reject(new Error(`Failed to load script after ${RETRY_ATTEMPTS} attempts`));
                     }
                 };
 
@@ -311,14 +320,17 @@
 
     async function initializeUI() {
         if (!window.UI) {
-            throw new Error('UI module not found');
+            throw new Error('UI module not loaded. Please check the build process.');
         }
 
         try {
-            window.UI.getInstance();
+            const ui = window.UI.getInstance();
+            if (!ui) {
+                throw new Error('Failed to create UI instance');
+            }
             return true;
         } catch (error) {
-            throw error;
+            throw new Error(`UI initialization failed: ${error.message}`);
         }
     }
 
@@ -326,7 +338,10 @@
         const loader = new ScriptLoader();
 
         loadingTimeout = setTimeout(() => {
-            showError('Plugin initialization timed out. Please reload.');
+            showError(
+                'Plugin initialization timed out',
+                'The plugin took too long to initialize. Please try reloading.'
+            );
         }, INIT_TIMEOUT);
 
         try {
@@ -342,7 +357,12 @@
                 app.classList.add('loaded');
             }
         } catch (error) {
-            showError(`Failed to initialize plugin: ${error.message}`);
+            const errorMessage = error.message || 'Unknown error occurred';
+            const errorDetails = error.stack ? error.stack.split('\n')[0] : '';
+            showError(
+                'Failed to initialize plugin',
+                errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage
+            );
         }
     });
 
@@ -351,6 +371,14 @@
             clearTimeout(loadingTimeout);
         }
     });
+
+    window.onerror = (msg, url, lineNo, columnNo, error) => {
+        showError(
+            'An unexpected error occurred',
+            `${msg}\nLocation: ${url}:${lineNo}:${columnNo}`
+        );
+        return false;
+    };
 </script>
 </body>
 </html>

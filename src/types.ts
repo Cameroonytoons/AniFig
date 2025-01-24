@@ -12,15 +12,53 @@ export interface AnimationPreset {
   };
 }
 
-export interface Message {
-  type: 'check-ready' | 'create-animation' | 'apply-animation' | 'find-similar' | 'modify-shared';
-  animation?: {
+export interface PluginReadyMessage {
+  type: 'plugin-ready';
+  state: {
+    isInitialized: boolean;
+  };
+}
+
+export interface InitializationErrorMessage {
+  type: 'initialization-error';
+  error: string;
+}
+
+export interface CreateAnimationMessage {
+  type: 'create-animation';
+  animation: {
     name: string;
     properties: AnimationPreset;
   };
-  animationName?: string;
-  newProperties?: AnimationPreset;
 }
+
+export interface ApplyAnimationMessage {
+  type: 'apply-animation';
+  animationName: string;
+}
+
+export interface FindSimilarMessage {
+  type: 'find-similar';
+}
+
+export interface ModifySharedMessage {
+  type: 'modify-shared';
+  animationName: string;
+  newProperties: AnimationPreset;
+}
+
+export interface CheckReadyMessage {
+  type: 'check-ready';
+}
+
+export type Message = 
+  | PluginReadyMessage
+  | InitializationErrorMessage
+  | CreateAnimationMessage
+  | ApplyAnimationMessage
+  | FindSimilarMessage
+  | ModifySharedMessage
+  | CheckReadyMessage;
 
 export interface AnimationGroup {
   name: string;
@@ -31,3 +69,9 @@ export interface AnimationGroup {
 }
 
 export type SimilarAnimationsResponse = [string, Array<{ id: string; name: string }>][];
+
+export interface ErrorState {
+  message: string;
+  details?: string;
+  stack?: string;
+}

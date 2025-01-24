@@ -10,6 +10,7 @@ figma.showUI(__html__, {
 });
 
 let animationStore: { [key: string]: AnimationPreset } = {};
+let isInitialized = false;
 
 // Initialize plugin with proper error handling
 (async () => {
@@ -20,13 +21,22 @@ let animationStore: { [key: string]: AnimationPreset } = {};
       animationStore = stored as { [key: string]: AnimationPreset };
     }
 
-    // Setup message handlers
+    // Setup message handlers with improved error handling
     figma.ui.onmessage = async (msg: Message) => {
+      if (!isInitialized && msg.type !== 'check-ready') {
+        figma.notify('Plugin is still initializing', { error: true });
+        return;
+      }
+
       try {
         switch (msg.type) {
           case 'check-ready':
-            // Respond to ready check
-            figma.ui.postMessage({ type: 'plugin-ready' });
+            // Respond to ready check with initialization state
+            figma.ui.postMessage({ 
+              type: 'plugin-ready',
+              state: { isInitialized }
+            });
+            isInitialized = true;
             break;
 
           case 'create-animation':
@@ -96,16 +106,21 @@ let animationStore: { [key: string]: AnimationPreset } = {};
         }
       } catch (error) {
         console.error('Plugin error:', error);
-        figma.notify('An error occurred', { error: true });
+        figma.notify(error instanceof Error ? error.message : 'An error occurred', { error: true });
       }
     };
 
     // Initialize plugin state and notify UI
     console.log('Plugin initialized');
-    figma.ui.postMessage({ type: 'plugin-ready' });
+    figma.ui.postMessage({ 
+      type: 'plugin-ready',
+      state: { isInitialized: true }
+    });
 
     // Handle selection changes
     figma.on('selectionchange', () => {
+      if (!isInitialized) return;
+
       const nodes = figma.currentPage.selection;
       nodes.forEach(node => {
         const animationName = node.getPluginData('animation');
@@ -118,10 +133,15 @@ let animationStore: { [key: string]: AnimationPreset } = {};
       });
     });
 
+    isInitialized = true;
     figma.notify('Animation Library Manager initialized');
   } catch (error) {
     console.error('Initialization error:', error);
     figma.notify('Failed to initialize plugin', { error: true });
+    figma.ui.postMessage({ 
+      type: 'initialization-error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 })();
 

@@ -1,5 +1,5 @@
 import { Store } from './store';
-import { AnimationPreset } from './types';
+import { AnimationPreset, Message, ErrorState } from './types';
 import { generateAnimationCSS } from './utils';
 
 let instance: UI | null = null;
@@ -11,28 +11,41 @@ class UI {
   private currentAnimation: string | null = null;
   private searchInput: HTMLInputElement | null = null;
   private initializationTimeout: ReturnType<typeof setTimeout> | null = null;  // Using ReturnType instead of NodeJS.Timeout
+  private initialized: boolean = false;
 
   constructor() {
-    console.log('UI Constructor: Starting initialization');
     if (instance) {
       console.warn('UI instance already exists');
       return instance;
     }
     instance = this;
     this.store = new Store();
-    this.initializePlugin();
   }
 
-  static getInstance(): UI {
-    if (!instance) {
-      instance = new UI();
+  static getInstance(): UI | null {
+    try {
+      if (!instance) {
+        instance = new UI();
+        instance.initializePlugin().catch(error => {
+          console.error('Failed to initialize UI:', error);
+          instance = null;
+          throw error;
+        });
+      }
+      return instance;
+    } catch (error) {
+      console.error('Error getting UI instance:', error);
+      return null;
     }
-    return instance;
   }
 
   private async initializePlugin() {
     console.log('InitializePlugin: Starting setup');
     try {
+      if (this.initialized) {
+        return;
+      }
+
       // Clear any existing error state
       const errorState = document.getElementById('error-state');
       if (errorState) {
@@ -47,49 +60,20 @@ class UI {
         return false;
       };
 
-      // Setup initial message handler
-      window.onmessage = (event) => {
-        const msg = event.data.pluginMessage;
-        if (msg?.type === 'plugin-ready') {
-          this.continueInitialization().catch((error) => {
-            console.error('Failed to continue initialization:', error);
-            this.showErrorState(error as Error);
-          });
-        }
-      };
-
-      // Request plugin ready status
-      parent.postMessage({ pluginMessage: { type: 'check-ready' } }, '*');
-
-      // Set timeout for initialization
-      this.initializationTimeout = setTimeout(() => {
-        if (!this.container?.classList.contains('loaded')) {
-          const error = new Error('Plugin initialization timeout');
-          console.error(error);
-          this.showErrorState(error);
-        }
-      }, 5000);
-
-    } catch (error) {
-      console.error('Failed to initialize plugin:', error);
-      this.showErrorState(error as Error);
-    }
-  }
-
-  private async continueInitialization() {
-    try {
-      console.log('Plugin ready, initializing store');
+      // Wait for store initialization
       await this.store.init();
       await this.initializeDOMAfterLoad();
+
+      this.initialized = true;
 
       // Clear timeout if initialization succeeded
       if (this.initializationTimeout) {
         clearTimeout(this.initializationTimeout);
       }
     } catch (error) {
-      console.error('Failed to continue initialization:', error);
+      console.error('Failed to initialize plugin:', error);
       this.showErrorState(error as Error);
-      throw error; // Re-throw to be caught by the caller
+      throw error;
     }
   }
 
@@ -103,11 +87,13 @@ class UI {
       }
 
       console.log('Found app container, rendering UI components');
-      this.renderCreateForm();
-      this.renderAnimationList();
-      this.setupMessageHandlers();
-      this.updateAnimationList();
-      this.createPreviewElement();
+      await Promise.all([
+        this.renderCreateForm(),
+        this.renderAnimationList(),
+        this.setupMessageHandlers(),
+        this.updateAnimationList(),
+        this.createPreviewElement()
+      ]);
 
       const loading = document.getElementById("loading");
       if (loading) {
@@ -119,6 +105,7 @@ class UI {
     } catch (error) {
       console.error('Failed to initialize DOM:', error);
       this.showErrorState(error as Error);
+      throw error;
     }
   }
 
@@ -126,16 +113,30 @@ class UI {
     const errorState = document.getElementById('error-state');
     if (errorState) {
       errorState.style.display = 'block';
-      if (error) {
-        const errorMessage = document.createElement('p');
-        errorMessage.textContent = error.message;
-        errorState.appendChild(errorMessage);
+      const errorMessage = errorState.querySelector('p');
+      if (errorMessage) {
+        errorMessage.textContent = error?.message || 'An unexpected error occurred';
+
+        // Add stack trace for debugging if available
+        if (error?.stack) {
+          const stackTrace = document.createElement('pre');
+          stackTrace.style.fontSize = '11px';
+          stackTrace.style.overflow = 'auto';
+          stackTrace.style.maxHeight = '200px';
+          stackTrace.textContent = error.stack;
+          errorState.appendChild(stackTrace);
+        }
       }
     }
+
+    // Hide loading indicator if visible
     const loading = document.getElementById('loading');
     if (loading) {
       loading.style.display = 'none';
     }
+
+    // Log error for debugging
+    console.error('UI Error:', error);
   }
 
   private renderCreateForm() {
@@ -430,8 +431,27 @@ class UI {
   private setupMessageHandlers() {
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
-      if (msg.type === 'similar-found') {
-        this.showSimilarAnimations(msg.animations);
+      try {
+        if (msg.type === 'plugin-ready') {
+          // Handle plugin ready state
+          console.log('Plugin ready event received:', msg);
+          if (msg.state?.isInitialized) {
+            this.container?.classList.add('loaded');
+            const loading = document.getElementById('loading');
+            if (loading) {
+              loading.remove();
+            }
+          }
+        } else if (msg.type === 'initialization-error') {
+          // Handle initialization errors from plugin
+          console.error('Plugin initialization error:', msg.error);
+          this.showErrorState(new Error(msg.error || 'Failed to initialize plugin'));
+        } else if (msg.type === 'similar-found') {
+          this.showSimilarAnimations(msg.animations);
+        }
+      } catch (error) {
+        console.error('Error handling plugin message:', error);
+        this.showErrorState(new Error('Failed to process plugin message'));
       }
     };
   }
@@ -506,13 +526,21 @@ window.UI = UI;
 window.addEventListener('load', () => {
   try {
     console.log('Window loaded, creating UI instance');
-    UI.getInstance();
+    const ui = UI.getInstance();
+    if (!ui) {
+      throw new Error('Failed to create UI instance');
+    }
     console.log('UI initialized successfully');
   } catch (error) {
     console.error("Error creating UI:", error);
     const errorState = document.getElementById("error-state");
     if (errorState) {
-      errorState.style.display = "block";
+      const message = errorState.querySelector("p");
+      if (message && error instanceof Error) {
+        message.textContent = `Initialization failed: ${error.message}`;
+      } else {
+        message.textContent = "Initialization failed: Unknown error occurred";
+      }
     }
   }
 });
