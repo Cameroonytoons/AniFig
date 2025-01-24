@@ -1,0 +1,12 @@
+{
+  "name": "Animation Library Manager",
+  "id": "animation-library-manager",
+  "api": "1.0.0",
+  "main": "build/code.js",
+  "ui": "build/ui.js",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  },
+  "permissions": ["currentuser"]
+}
