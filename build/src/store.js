@@ -3,11 +3,11 @@ export class Store {
         this.animations = new Map();
         this.initialized = false;
         this.initializationPromise = null;
-        this.INIT_TIMEOUT = 5000; // 5 seconds timeout
-        this.cleanupHandlers = [];
+        this.INIT_TIMEOUT = 10000; // 10 seconds timeout
+        this.MAX_RETRIES = 3;
+        this.RETRY_DELAY = 1000;
     }
     async init() {
-        console.log('Store: Starting initialization');
         if (this.initialized) {
             console.log('Store: Already initialized');
             return;
@@ -16,50 +16,47 @@ export class Store {
             console.log('Store: Using existing initialization promise');
             return this.initializationPromise;
         }
-        this.initializationPromise = new Promise(async (resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-                console.error('Store: Initialization timed out');
-                this.cleanup();
-                this.initialized = false;
-                reject(new Error('Store initialization timed out'));
-            }, this.INIT_TIMEOUT);
-            try {
-                console.log('Store: Loading stored animations');
-                const stored = await figma.clientStorage.getAsync('animations');
-                if (stored) {
-                    console.log('Store: Processing stored animations');
-                    Object.entries(stored).forEach(([key, value]) => {
-                        this.animations.set(key, value);
-                    });
-                    console.log(`Store: Loaded ${this.animations.size} animations`);
-                }
-                this.initialized = true;
-                clearTimeout(timeoutId);
-                console.log('Store: Initialization completed successfully');
-                resolve();
-            }
-            catch (error) {
-                console.error('Store: Initialization failed:', error);
-                clearTimeout(timeoutId);
-                this.cleanup();
-                this.initialized = false;
-                reject(error);
-            }
-        });
+        this.initializationPromise = this.initializeWithRetry();
         return this.initializationPromise;
     }
-    cleanup() {
-        console.log('Store: Running cleanup');
-        this.cleanupHandlers.forEach(handler => {
-            try {
-                handler();
+    async initializeWithRetry(attempt = 1) {
+        try {
+            console.log(`Store: Initialization attempt ${attempt}/${this.MAX_RETRIES}`);
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Store initialization timed out')), this.INIT_TIMEOUT);
+            });
+            const initPromise = this.doInitialize();
+            await Promise.race([initPromise, timeoutPromise]);
+            this.initialized = true;
+            console.log('Store: Initialization completed successfully');
+        }
+        catch (error) {
+            console.error(`Store: Initialization attempt ${attempt} failed:`, error);
+            if (attempt < this.MAX_RETRIES) {
+                console.log(`Store: Retrying in ${this.RETRY_DELAY}ms...`);
+                await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+                return this.initializeWithRetry(attempt + 1);
             }
-            catch (error) {
-                console.error('Store: Cleanup handler failed:', error);
+            this.initialized = false;
+            throw new Error(`Failed to initialize store after ${this.MAX_RETRIES} attempts`);
+        }
+    }
+    async doInitialize() {
+        try {
+            console.log('Store: Loading stored animations');
+            const stored = await figma.clientStorage.getAsync('animations');
+            if (stored) {
+                console.log('Store: Processing stored animations');
+                Object.entries(stored).forEach(([key, value]) => {
+                    this.animations.set(key, value);
+                });
+                console.log(`Store: Loaded ${this.animations.size} animations`);
             }
-        });
-        this.cleanupHandlers = [];
-        this.animations.clear();
+        }
+        catch (error) {
+            console.error('Store: Error during initialization:', error);
+            throw error;
+        }
     }
     getAnimation(name) {
         this.checkInitialization();
@@ -67,12 +64,6 @@ export class Store {
     }
     setAnimation(name, preset) {
         this.checkInitialization();
-        if (!this.validateAnimation(preset)) {
-            throw new Error('Invalid animation preset');
-        }
-        if (this.animations.has(name)) {
-            throw new Error(`Animation "${name}" already exists`);
-        }
         this.animations.set(name, preset);
         this.persist();
     }
@@ -172,7 +163,6 @@ export class Store {
     }
     checkInitialization() {
         if (!this.initialized) {
-            console.error('Store: Attempted to use store before initialization');
             throw new Error('Store not initialized. Call init() first.');
         }
     }

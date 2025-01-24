@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    /* Base styles */
     body {
       font: 12px sans-serif;
       margin: 0;
@@ -23,6 +24,7 @@
       display: block;
     }
 
+    /* Loading state styles */
     #loading {
       text-align: center;
       padding: 20px;
@@ -44,28 +46,13 @@
       margin: 16px auto;
     }
 
-    .loading-step {
-      font-size: 12px;
-      color: var(--figma-color-text);
-      margin: 4px 0;
-      opacity: 0.7;
-    }
-
-    .loading-step.completed {
-      color: var(--figma-color-text-secondary);
-      text-decoration: line-through;
-    }
-
-    .loading-step.error {
-      color: #e34850;
-    }
-
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
 
-    .error-state {
+    /* Error state styles */
+    #error-state {
       display: none;
       color: #e34850;
       text-align: center;
@@ -73,375 +60,241 @@
       margin: 20px;
       border: 1px solid #e34850;
       border-radius: 4px;
-      background: #fff5f5;
-    }
-
-    .section {
-      margin-bottom: 24px;
-      padding: 16px;
-      border: 1px solid var(--figma-color-border);
-      border-radius: 4px;
-    }
-
-    .input-group {
-      margin-bottom: 12px;
-      position: relative;
+      background: rgba(227, 72, 80, 0.1);
     }
 
     .error-message {
-      color: #e34850;
-      font-size: 11px;
-      margin-top: 4px;
-      display: none;
+      margin: 8px 0;
+      font-size: 13px;
     }
 
-    .input-group.error .error-message {
-      display: block;
-    }
-
-    input, select {
-      width: 100%;
+    .error-details {
+      margin-top: 12px;
       padding: 8px;
-      margin: 4px 0;
-      border: 1px solid var(--figma-color-border);
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
-      background: var(--figma-color-bg);
-      color: var(--figma-color-text);
-    }
-
-    .input-group.error input {
-      border-color: #e34850;
-    }
-
-    button {
-      width: 100%;
-      padding: 8px 16px;
-      background: var(--figma-color-bg-brand);
-      color: var(--figma-color-text-onbrand);
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin: 4px 0;
-    }
-
-    button:hover {
-      background: var(--figma-color-bg-brand-hover);
-    }
-
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .preview-container {
-      margin: 16px 0;
-      padding: 16px;
-      border: 1px solid var(--figma-color-border);
-      border-radius: 4px;
-      text-align: center;
-    }
-
-    .preview-box {
-      width: 50px;
-      height: 50px;
-      background: var(--figma-color-bg-brand);
-      margin: 0 auto 16px;
-      border-radius: 4px;
-    }
-
-    .animation-list {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid var(--figma-color-border);
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-
-    .animation-item {
-      padding: 12px;
-      border-bottom: 1px solid var(--figma-color-border);
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-
-    .animation-item:last-child {
-      border-bottom: none;
-    }
-
-    .animation-item:hover {
-      background: var(--figma-color-bg-hover);
-    }
-
-    .animation-item.selected {
-      background: var(--figma-color-bg-selected);
-    }
-
-    .group-header {
-      padding: 8px;
-      background: var(--figma-color-bg-secondary);
-      font-weight: 500;
-      border-bottom: 1px solid var(--figma-color-border);
-    }
-
-    .description {
-      margin: 4px 0;
-      color: var(--figma-color-text-secondary);
+      font-family: monospace;
       font-size: 11px;
-    }
-
-    .tooltip {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      line-height: 16px;
-      text-align: center;
-      border-radius: 50%;
-      background: var(--figma-color-bg-secondary);
-      color: var(--figma-color-text-secondary);
-      font-size: 10px;
-      cursor: help;
-      margin-left: 4px;
-      position: relative;
-    }
-
-    .tooltip:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      background: var(--figma-color-bg);
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      max-width: 200px;
-      z-index: 1000;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      left: 50%;
-      transform: translateX(-50%);
-      top: 100%;
-      margin-top: 8px;
       white-space: pre-wrap;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
     }
 
     .retry-button {
-      max-width: 120px;
-      margin: 16px auto;
-      display: block;
+      background: #e34850;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 16px;
+      font-weight: 500;
     }
 
-    .error-stack {
-      font-family: monospace;
-      font-size: 11px;
-      margin-top: 16px;
-      padding: 8px;
-      background: rgba(227, 72, 80, 0.1);
-      border-radius: 4px;
-      overflow-x: auto;
-      white-space: pre-wrap;
+    .retry-button:hover {
+      background: #d43f47;
+    }
+
+    /* Loading steps styles */
+    .loading-step {
+      margin: 4px 0;
+      display: flex;
+      align-items: center;
+      color: var(--figma-color-text-secondary);
+    }
+
+    .loading-step::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: var(--figma-color-bg-secondary);
+    }
+
+    .loading-step.active::before {
+      background: var(--figma-color-bg-brand);
+    }
+
+    .loading-step.completed {
+      color: var(--figma-color-text-success);
+    }
+
+    .loading-step.completed::before {
+      background: var(--figma-color-text-success);
+    }
+
+    .loading-step.error {
+      color: #e34850;
+    }
+
+    .loading-step.error::before {
+      background: #e34850;
     }
   </style>
 </head>
 <body>
-  <div id="error-state" class="error-state">
-    <h3>Error</h3>
-    <p></p>
-    <button id="retry-button" class="retry-button">Retry</button>
+  <div id="error-state">
+    <h3>Initialization Error</h3>
+    <p class="error-message"></p>
+    <div class="error-details"></div>
+    <button class="retry-button">Retry</button>
   </div>
 
   <div id="app">
     <div id="loading">
       <div class="loader"></div>
-      <div id="loading-steps">
-        <div class="loading-step" data-step="init">Initializing plugin...</div>
-        <div class="loading-step" data-step="scripts">Loading required scripts...</div>
-        <div class="loading-step" data-step="store">Setting up data store...</div>
-        <div class="loading-step" data-step="ui">Preparing user interface...</div>
+      <div class="loading-steps">
+        <div class="loading-step" data-step="init">Loading plugin...</div>
+        <div class="loading-step" data-step="store">Initializing store...</div>
+        <div class="loading-step" data-step="ui">Setting up interface...</div>
       </div>
     </div>
   </div>
 
-<script>
-    const INIT_TIMEOUT = 15000; // Increased to 15 seconds
-    const RETRY_ATTEMPTS = 5;   // Increased retry attempts
-    const RETRY_DELAY = 2000;   // Increased delay between retries
-    let loadingTimeout = null;
-    let currentStep = 'init';
-
-    function updateLoadingStep(step, status = 'pending') {
-        const steps = document.querySelectorAll('.loading-step');
-        steps.forEach(s => {
-            if (s.dataset.step === step) {
-                s.classList.remove('completed', 'error');
-                if (status === 'completed') {
-                    s.classList.add('completed');
-                } else if (status === 'error') {
-                    s.classList.add('error');
-                }
-            }
-        });
-    }
+  <script>
+    const INIT_MAX_RETRIES = 3;
+    const INIT_RETRY_DELAY = 2000;
+    const INIT_TIMEOUT = 10000;
+    let currentRetry = 0;
+    let initTimeout = null;
 
     function showError(message, details = '') {
-        console.error('Error occurred:', message, details);
-        const errorState = document.getElementById('error-state');
-        const loading = document.getElementById('loading');
+      const errorState = document.getElementById('error-state');
+      const loading = document.getElementById('loading');
 
-        if (errorState) {
-            errorState.style.display = 'block';
-            const errorMessage = errorState.querySelector('p');
-            if (errorMessage) {
-                errorMessage.textContent = message;
-                if (details) {
-                    const detailsElem = document.createElement('p');
-                    detailsElem.textContent = details;
-                    detailsElem.style.fontSize = '11px';
-                    errorState.appendChild(detailsElem);
-                }
-            }
+      if (errorState) {
+        errorState.style.display = 'block';
+        const messageElem = errorState.querySelector('.error-message');
+        const detailsElem = errorState.querySelector('.error-details');
 
-            const retryButton = document.getElementById('retry-button');
-            if (retryButton) {
-                retryButton.onclick = () => {
-                    errorState.style.display = 'none';
-                    if (loading) loading.style.display = 'block';
-                    initializePlugin();
-                };
-            }
+        if (messageElem) messageElem.textContent = message;
+        if (detailsElem) detailsElem.textContent = details;
+
+        const retryButton = errorState.querySelector('.retry-button');
+        if (retryButton) {
+          retryButton.onclick = () => {
+            errorState.style.display = 'none';
+            if (loading) loading.style.display = 'flex';
+            initializePlugin();
+          };
         }
+      }
 
-        if (loading) {
-            loading.style.display = 'none';
-        }
-
-        updateLoadingStep(currentStep, 'error');
+      if (loading) loading.style.display = 'none';
+      updateLoadingStep(getCurrentStep(), 'error');
     }
 
-    async function loadScript(filename, attempt = 1) {
-        try {
-            currentStep = 'scripts';
-            updateLoadingStep('scripts');
-
-            const scriptPath = `${window.location.href.split('/').slice(0, -1).join('/')}/${filename}`;
-            console.log(`Loading script (attempt ${attempt}/${RETRY_ATTEMPTS}):`, scriptPath);
-
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = scriptPath;
-                script.async = true;
-                script.crossOrigin = "anonymous";
-
-                const timeoutId = setTimeout(() => {
-                    script.remove();
-                    reject(new Error(`Script load timed out after ${INIT_TIMEOUT}ms: ${filename}`));
-                }, INIT_TIMEOUT);
-
-                script.onload = () => {
-                    clearTimeout(timeoutId);
-                    console.log('Script loaded successfully:', filename);
-                    updateLoadingStep('scripts', 'completed');
-                    resolve();
-                };
-
-                script.onerror = async (error) => {
-                    clearTimeout(timeoutId);
-                    script.remove();
-                    console.error(`Script load error (attempt ${attempt}):`, error);
-
-                    if (attempt < RETRY_ATTEMPTS) {
-                        updateLoadingStep('scripts');
-                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-                        try {
-                            await loadScript(filename, attempt + 1);
-                            resolve();
-                        } catch (retryError) {
-                            reject(new Error(`Failed to load script after ${attempt} attempts: ${retryError.message}`));
-                        }
-                    } else {
-                        updateLoadingStep('scripts', 'error');
-                        reject(new Error(`Failed to load script after ${RETRY_ATTEMPTS} attempts`));
-                    }
-                };
-
-                document.body.appendChild(script);
-            });
-        } catch (error) {
-            if (attempt < RETRY_ATTEMPTS) {
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-                return loadScript(filename, attempt + 1);
-            }
-            throw error;
+    function getCurrentStep() {
+      const steps = document.querySelectorAll('.loading-step');
+      for (const step of steps) {
+        if (step.classList.contains('active')) {
+          return step.dataset.step;
         }
+      }
+      return 'init';
+    }
+
+    function updateLoadingStep(step, status = 'active') {
+      const steps = document.querySelectorAll('.loading-step');
+      steps.forEach(s => {
+        if (s.dataset.step === step) {
+          s.classList.remove('active', 'completed', 'error');
+          s.classList.add(status);
+        }
+      });
     }
 
     async function initializePlugin() {
-        currentStep = 'init';
+      if (currentRetry >= INIT_MAX_RETRIES) {
+        showError(
+          'Maximum initialization attempts reached',
+          'Please refresh the page or contact support if the problem persists.'
+        );
+        return;
+      }
+
+      try {
         updateLoadingStep('init');
 
-        if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-        }
+        // Clear any existing timeout
+        if (initTimeout) clearTimeout(initTimeout);
 
-        loadingTimeout = setTimeout(() => {
-            showError(
-                'Plugin initialization timed out',
-                'The plugin took too long to initialize. Please try again.'
-            );
+        // Set new timeout
+        initTimeout = setTimeout(() => {
+          throw new Error('Initialization timed out');
         }, INIT_TIMEOUT);
 
-        try {
-            updateLoadingStep('init', 'completed');
-            await loadScript('build/ui.js');
+        // Load UI script
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'build/ui.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
 
-            currentStep = 'store';
-            updateLoadingStep('store');
+        updateLoadingStep('init', 'completed');
+        updateLoadingStep('store', 'active');
 
-            if (!window.UI) {
-                throw new Error('UI module not loaded correctly');
-            }
-
-            const ui = window.UI.getInstance();
-            if (!ui) {
-                throw new Error('Failed to create UI instance');
-            }
-
-            updateLoadingStep('store', 'completed');
-            currentStep = 'ui';
-            updateLoadingStep('ui');
-
-            // Clear timeout if everything succeeded
-            if (loadingTimeout) {
-                clearTimeout(loadingTimeout);
-            }
-
-            const app = document.getElementById('app');
-            if (app) {
-                app.classList.add('loaded');
-                updateLoadingStep('ui', 'completed');
-            }
-        } catch (error) {
-            const errorMessage = error.message || 'Unknown error occurred';
-            const errorDetails = error.stack ? error.stack.split('\n')[0] : '';
-            showError(
-                'Failed to initialize plugin',
-                errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage
-            );
-            throw error;
+        // Initialize UI instance
+        if (!window.UI) {
+          throw new Error('UI module not loaded correctly');
         }
+
+        const ui = window.UI.getInstance();
+        if (!ui) {
+          throw new Error('Failed to create UI instance');
+        }
+
+        updateLoadingStep('store', 'completed');
+        updateLoadingStep('ui', 'active');
+
+        // Clear timeout on success
+        clearTimeout(initTimeout);
+
+        const app = document.getElementById('app');
+        if (app) {
+          app.classList.add('loaded');
+          updateLoadingStep('ui', 'completed');
+        }
+
+        currentRetry = 0; // Reset retry counter on success
+      } catch (error) {
+        console.error('Initialization error:', error);
+        clearTimeout(initTimeout);
+
+        currentRetry++;
+        if (currentRetry < INIT_MAX_RETRIES) {
+          console.log(`Retrying initialization (${currentRetry}/${INIT_MAX_RETRIES})...`);
+          setTimeout(initializePlugin, INIT_RETRY_DELAY);
+        } else {
+          showError(
+            'Failed to initialize plugin',
+            error.stack || error.message || 'Unknown error occurred'
+          );
+        }
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', initializePlugin);
+    // Start initialization when the page loads
+    window.addEventListener('DOMContentLoaded', initializePlugin);
 
+    // Cleanup on page unload
     window.addEventListener('unload', () => {
-        if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-        }
+      if (initTimeout) clearTimeout(initTimeout);
     });
 
+    // Global error handler
     window.onerror = (msg, url, lineNo, columnNo, error) => {
-        showError(
-            'An unexpected error occurred',
-            `${msg}\nLocation: ${url}:${lineNo}:${columnNo}`
-        );
-        return false;
+      showError(
+        'An unexpected error occurred',
+        `${msg}\nLocation: ${url}:${lineNo}:${columnNo}\n${error?.stack || ''}`
+      );
+      return false;
     };
-</script>
+  </script>
 </body>
 </html>

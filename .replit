@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "Build Figma Plugin"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Serve Figma Plugin"
+
 [[workflows.workflow]]
 name = "Build Figma Plugin"
 author = "agent"
@@ -43,6 +47,21 @@ args = """
     ls -la build/
     """
 
+[[workflows.workflow]]
+name = "Serve Figma Plugin"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx http-server . -p 3000 --cors"
+waitForPort = 3000
+
 [deployment]
 run = ["sh", "-c", """
 
@@ -59,3 +78,7 @@ run = ["sh", "-c", """
     echo \"Build completed successfully\" &&
     ls -la build/
     """]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
