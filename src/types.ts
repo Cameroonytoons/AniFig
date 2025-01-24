@@ -2,6 +2,8 @@ export interface AnimationPreset {
   type: 'fade' | 'slide' | 'scale' | 'rotate';
   duration: number;
   easing: 'ease' | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+  description?: string;
+  group?: string;
   properties: {
     [key in 'opacity' | 'x' | 'y' | 'rotation' | 'scale']?: {
       from: number;

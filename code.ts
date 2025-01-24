@@ -1,6 +1,10 @@
 /// <reference types="@figma/plugin-typings" />
 import { AnimationPreset, Message } from './src/types';
 
+// Add canvas performance hint
+const canvas = document.createElement('canvas');
+canvas.setAttribute('willReadFrequently', 'true');
+
 figma.showUI(__html__, { width: 320, height: 480 });
 
 let animationStore: { [key: string]: AnimationPreset } = {};

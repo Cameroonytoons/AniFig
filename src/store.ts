@@ -1,7 +1,7 @@
 import { AnimationPreset } from './types';
 
 export class Store {
-  private animations: Map<string, AnimationPreset> = new Map();
+  private animations: Map<string, AnimationPreset & { description?: string; group?: string }> = new Map();
 
   async init() {
     const stored = await figma.clientStorage.getAsync('animations');
@@ -16,7 +16,7 @@ export class Store {
     return this.animations.get(name);
   }
 
-  setAnimation(name: string, preset: AnimationPreset) {
+  setAnimation(name: string, preset: AnimationPreset & { description?: string; group?: string }) {
     // Validate animation parameters
     if (!this.validateAnimation(preset)) {
       throw new Error('Invalid animation preset');
@@ -52,6 +52,21 @@ export class Store {
     }
     this.animations.delete(name);
     this.persist();
+  }
+
+  getAnimationsByGroup(group: string): [string, AnimationPreset][] {
+    return Array.from(this.animations.entries())
+      .filter(([_, preset]) => preset.group === group);
+  }
+
+  searchAnimations(query: string): [string, AnimationPreset][] {
+    const lowercaseQuery = query.toLowerCase();
+    return Array.from(this.animations.entries())
+      .filter(([name, preset]) => 
+        name.toLowerCase().includes(lowercaseQuery) ||
+        preset.description?.toLowerCase().includes(lowercaseQuery) ||
+        preset.group?.toLowerCase().includes(lowercaseQuery)
+      );
   }
 
   private validateAnimation(preset: AnimationPreset): boolean {

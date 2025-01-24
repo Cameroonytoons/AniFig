@@ -1,12 +1,13 @@
 import { AnimationPreset, Message } from './types';
 import { Store } from './store';
-import { generateAnimationCSS, generateTransitionKeyframes } from './utils';
+import { generateAnimationCSS } from './utils';
 
 class UI {
   private store: Store;
   private container: HTMLElement;
   private previewElement: HTMLElement | null = null;
   private currentAnimation: string | null = null;
+  private searchInput: HTMLInputElement | null = null;
 
   constructor() {
     this.store = new Store();
@@ -33,6 +34,14 @@ class UI {
       <div class="input-group">
         <input type="text" id="animationName" placeholder="Animation Name" required>
         <div class="error-message">Please enter a unique animation name</div>
+      </div>
+      <div class="input-group">
+        <input type="text" id="animationDescription" placeholder="Description (optional)">
+        <span class="tooltip" data-tooltip="Add a description to help identify this animation">?</span>
+      </div>
+      <div class="input-group">
+        <input type="text" id="animationGroup" placeholder="Group (optional)">
+        <span class="tooltip" data-tooltip="Group related animations together">?</span>
       </div>
       <div class="input-group">
         <select id="animationType">
@@ -70,6 +79,8 @@ class UI {
     const createBtn = form.querySelector('#createBtn')!;
     createBtn.addEventListener('click', () => {
       const nameInput = document.getElementById('animationName') as HTMLInputElement;
+      const descriptionInput = document.getElementById('animationDescription') as HTMLInputElement;
+      const groupInput = document.getElementById('animationGroup') as HTMLInputElement;
       const name = nameInput.value.trim();
 
       if (!name) {
@@ -88,15 +99,19 @@ class UI {
           return;
         }
 
-        const animation: AnimationPreset = {
+        const animation: AnimationPreset & { description?: string; group?: string } = {
           type,
           duration,
           easing,
-          properties: this.getDefaultProperties(type)
+          properties: this.getDefaultProperties(type),
+          description: descriptionInput.value.trim() || undefined,
+          group: groupInput.value.trim() || undefined
         };
 
         this.store.setAnimation(name, animation);
         nameInput.value = '';
+        descriptionInput.value = '';
+        groupInput.value = '';
         this.updateAnimationList();
 
         parent.postMessage({ 
@@ -157,10 +172,19 @@ class UI {
     list.className = 'section';
     list.innerHTML = `
       <h3>Saved Animations</h3>
+      <div class="search-container">
+        <input type="text" id="searchAnimations" placeholder="Search animations...">
+        <span class="tooltip" data-tooltip="Search by name, description, or group">?</span>
+      </div>
       <div class="animation-list" id="animationList"></div>
       <button id="findSimilarBtn">Find Similar Animations</button>
       <button id="applySelectedBtn">Apply Selected Animation</button>
     `;
+
+    this.searchInput = list.querySelector('#searchAnimations') as HTMLInputElement;
+    this.searchInput.addEventListener('input', () => {
+      this.updateAnimationList(this.searchInput!.value.trim());
+    });
 
     const findSimilarBtn = list.querySelector('#findSimilarBtn')!;
     findSimilarBtn.addEventListener('click', () => {
@@ -188,18 +212,42 @@ class UI {
     this.container.appendChild(list);
   }
 
-  private updateAnimationList() {
+  private updateAnimationList(searchQuery: string = '') {
     const listContainer = document.getElementById('animationList')!;
-    const animations = this.store.getAllAnimations();
+    const animations = searchQuery ? 
+      this.store.searchAnimations(searchQuery) : 
+      this.store.getAllAnimations();
 
-    listContainer.innerHTML = animations.map(([name, preset]) => `
-      <div class="animation-item" data-name="${name}">
-        <strong>${name}</strong>
-        <br>
-        Type: ${preset.type}, Duration: ${preset.duration}ms
-        <button class="preview-btn">Preview</button>
-      </div>
-    `).join('');
+    let currentGroup = '';
+    const groupedAnimations = animations
+      .sort(([, a], [, b]) => (a.group || '').localeCompare(b.group || ''))
+      .map(([name, preset]) => {
+        const isNewGroup = preset.group && preset.group !== currentGroup;
+        if (isNewGroup) {
+          currentGroup = preset.group!;
+          return `
+            ${isNewGroup ? `<div class="group-header">${preset.group}</div>` : ''}
+            <div class="animation-item" data-name="${name}">
+              <strong>${name}</strong>
+              ${preset.description ? `<p class="description">${preset.description}</p>` : ''}
+              <br>
+              Type: ${preset.type}, Duration: ${preset.duration}ms
+              <button class="preview-btn">Preview</button>
+            </div>
+          `;
+        }
+        return `
+          <div class="animation-item" data-name="${name}">
+            <strong>${name}</strong>
+            ${preset.description ? `<p class="description">${preset.description}</p>` : ''}
+            <br>
+            Type: ${preset.type}, Duration: ${preset.duration}ms
+            <button class="preview-btn">Preview</button>
+          </div>
+        `;
+      }).join('');
+
+    listContainer.innerHTML = groupedAnimations;
 
     const items = listContainer.querySelectorAll('.animation-item');
     items.forEach(item => {
@@ -224,7 +272,14 @@ class UI {
 
     this.previewElement = document.createElement('div');
     this.previewElement.className = 'preview-element';
+
+    // Add canvas with willReadFrequently attribute
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('willReadFrequently', 'true');
+    canvas.className = 'preview-canvas';
+
     this.previewElement.innerHTML = '<div class="preview-content"></div>';
+    this.previewElement.appendChild(canvas);
     document.body.appendChild(this.previewElement);
   }
 

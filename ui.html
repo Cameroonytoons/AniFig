@@ -43,12 +43,22 @@
     button:hover {
       background: #0D8DE3;
     }
+    .search-container {
+      margin-bottom: 16px;
+    }
     .animation-list {
       max-height: 200px;
       overflow-y: auto;
       border: 1px solid #e5e5e5;
       border-radius: 4px;
       margin: 8px 0;
+    }
+    .group-header {
+      background: #f5f5f5;
+      padding: 8px 12px;
+      font-weight: 600;
+      color: #666;
+      border-bottom: 1px solid #e5e5e5;
     }
     .animation-item {
       padding: 12px;
@@ -65,6 +75,12 @@
     .animation-item.selected {
       background: #E8F2FF;
       border-left: 3px solid #18A0FB;
+    }
+    .description {
+      margin: 4px 0;
+      color: #666;
+      font-size: 11px;
+      font-style: italic;
     }
     .preview-container {
       margin: 16px 0;
@@ -104,50 +120,6 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .dialog {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1001;
-    }
-    .dialog-content {
-      background: white;
-      padding: 24px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 320px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    }
-    .animation-group {
-      margin: 12px 0;
-      padding: 12px;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
-      background: #f8f8f8;
-    }
-    .preview-btn {
-      margin-top: 4px;
-      padding: 4px 12px;
-      font-size: 11px;
-      width: auto;
-      background: #666;
-    }
-    .preview-btn:hover {
-      background: #555;
-    }
-    .close-dialog {
-      margin-top: 16px;
-      background: #666;
-    }
-    .close-dialog:hover {
-      background: #555;
-    }
     .tooltip {
       position: relative;
       display: inline-block;
@@ -181,6 +153,6 @@
 </head>
 <body>
   <div id="app"></div>
-  <script src="build/ui.js"></script>
+  <script src="ui.js"></script>
 </body>
 </html>

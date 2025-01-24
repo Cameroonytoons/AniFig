@@ -6,7 +6,10 @@
     "typeRoots": ["./node_modules/@figma", "./node_modules/@types"],
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "outDir": "build",
+    "rootDir": ".",
+    "sourceMap": true
   },
   "include": ["code.ts", "src/**/*.ts"]
 }
