@@ -192,7 +192,13 @@
       this.currentAnimation = null;
       this.searchInput = null;
       this.store = new Store();
-      this.initializePlugin();
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+          this.initializePlugin();
+        });
+      } else {
+        this.initializePlugin();
+      }
     }
     initializePlugin() {
       window.onmessage = (event) => {
@@ -204,8 +210,8 @@
     }
     async initializeDOMAfterLoad() {
       try {
-        if (typeof document === "undefined" || !document.body) {
-          console.error("Document not available");
+        if (!document || !document.body) {
+          console.error("Document or body not available");
           return;
         }
         this.container = document.getElementById("app");
@@ -230,6 +236,12 @@
         if (errorState) {
           errorState.style.display = "block";
         }
+      }
+    }
+    showErrorState() {
+      const errorState = document.getElementById("error-state");
+      if (errorState) {
+        errorState.style.display = "block";
       }
     }
     renderCreateForm() {
@@ -537,7 +549,19 @@
       this.container.appendChild(dialog);
     }
   };
-  if (typeof parent !== "undefined" && typeof parent.postMessage === "function") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      try {
+        new UI();
+      } catch (error) {
+        console.error("Error creating UI:", error);
+        const errorState = document.getElementById("error-state");
+        if (errorState) {
+          errorState.style.display = "block";
+        }
+      }
+    });
+  } else {
     try {
       new UI();
     } catch (error) {

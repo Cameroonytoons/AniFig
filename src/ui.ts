@@ -11,11 +11,17 @@ class UI {
 
   constructor() {
     this.store = new Store();
-    this.initializePlugin();
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        this.initializePlugin();
+      });
+    } else {
+      this.initializePlugin();
+    }
   }
 
   private initializePlugin() {
-    // Wait for Figma's plugin environment to be ready
     window.onmessage = (event) => {
       if (event.data.pluginMessage?.type === 'plugin-ready') {
         this.initializeDOMAfterLoad();
@@ -25,16 +31,14 @@ class UI {
 
   private async initializeDOMAfterLoad() {
     try {
-      // Wait for both document and window to be ready
-      if (typeof document === 'undefined' || !document.body) {
-        console.error('Document not available');
+      if (!document || !document.body) {
+        console.error("Document or body not available");
         return;
       }
 
-      // Initialize container
-      this.container = document.getElementById('app');
+      this.container = document.getElementById("app");
       if (!this.container) {
-        console.error('Could not find app container');
+        console.error("Could not find app container");
         return;
       }
 
@@ -45,18 +49,24 @@ class UI {
       this.updateAnimationList();
       this.createPreviewElement();
 
-      // Remove loading indicator and show UI
-      const loading = document.getElementById('loading');
+      const loading = document.getElementById("loading");
       if (loading) {
         loading.remove();
       }
-      this.container.classList.add('loaded');
+      this.container.classList.add("loaded");
     } catch (error) {
-      console.error('Error during initialization:', error);
-      const errorState = document.getElementById('error-state');
+      console.error("Error during initialization:", error);
+      const errorState = document.getElementById("error-state");
       if (errorState) {
-        errorState.style.display = 'block';
+        errorState.style.display = "block";
       }
+    }
+  }
+
+  private showErrorState() {
+    const errorState = document.getElementById('error-state');
+    if (errorState) {
+      errorState.style.display = 'block';
     }
   }
 
@@ -306,16 +316,13 @@ class UI {
   private createPreviewElement() {
     if (this.previewElement) return;
 
-    // Create preview container
     this.previewElement = document.createElement('div');
     this.previewElement.className = 'preview-element';
 
-    // Create preview content
     const content = document.createElement('div');
     content.className = 'preview-content';
     this.previewElement.appendChild(content);
 
-    // Create and configure canvas with performance attributes
     try {
       const canvas = document.createElement('canvas');
       canvas.setAttribute('willReadFrequently', 'true');
@@ -323,10 +330,8 @@ class UI {
       this.previewElement.appendChild(canvas);
     } catch (error) {
       console.warn('Canvas creation failed:', error);
-      // Continue without canvas as it's not critical for core functionality
     }
 
-    // Append to document only after all elements are configured
     if (document.body) {
       document.body.appendChild(this.previewElement);
     } else {
@@ -419,15 +424,27 @@ class UI {
   }
 }
 
-// Initialize UI only when in Figma's plugin environment
-if (typeof parent !== 'undefined' && typeof parent.postMessage === 'function') {
+// Initialize UI only when in proper environment
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    try {
+      new UI();
+    } catch (error) {
+      console.error("Error creating UI:", error);
+      const errorState = document.getElementById("error-state");
+      if (errorState) {
+        errorState.style.display = "block";
+      }
+    }
+  });
+} else {
   try {
     new UI();
   } catch (error) {
-    console.error('Error creating UI:', error);
-    const errorState = document.getElementById('error-state');
+    console.error("Error creating UI:", error);
+    const errorState = document.getElementById("error-state");
     if (errorState) {
-      errorState.style.display = 'block';
+      errorState.style.display = "block";
     }
   }
 }

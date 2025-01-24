@@ -17,171 +17,32 @@
       opacity: 1;
     }
     #loading {
-        text-align: center;
-        font-weight: bold;
-        margin-top: 50px;
+      text-align: center;
+      padding: 20px;
+      font-weight: 500;
     }
     .error-state {
+      display: none;
       color: #e34850;
       text-align: center;
-      margin-top: 50px;
-      display: none;
-    }
-    .section {
-      margin-bottom: 24px;
-      background: #fff;
-      border-radius: 8px;
-      padding: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    input, select {
-      width: 100%;
-      margin: 8px 0;
-      padding: 8px;
-      border: 1px solid #e5e5e5;
+      padding: 20px;
+      margin: 20px;
+      border: 1px solid #e34850;
       border-radius: 4px;
-      font-size: 12px;
-    }
-    input:focus, select:focus {
-      outline: none;
-      border-color: #18A0FB;
-      box-shadow: 0 0 0 2px rgba(24,160,251,0.2);
-    }
-    button {
-      background: #18A0FB;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 16px;
-      margin: 8px 0;
-      cursor: pointer;
-      width: 100%;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #0D8DE3;
-    }
-    .search-container {
-      margin-bottom: 16px;
-    }
-    .animation-list {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #e5e5e5;
-      border-radius: 4px;
-      margin: 8px 0;
-    }
-    .group-header {
-      background: #f5f5f5;
-      padding: 8px 12px;
-      font-weight: 600;
-      color: #666;
-      border-bottom: 1px solid #e5e5e5;
-    }
-    .animation-item {
-      padding: 12px;
-      border-bottom: 1px solid #e5e5e5;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .animation-item:hover {
-      background: #f5f5f5;
-    }
-    .animation-item.selected {
-      background: #E8F2FF;
-      border-left: 3px solid #18A0FB;
-    }
-    .description {
-      margin: 4px 0;
-      color: #666;
-      font-size: 11px;
-      font-style: italic;
-    }
-    .preview-container {
-      margin: 16px 0;
-      padding: 24px;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
-      text-align: center;
-      background: #f8f8f8;
-    }
-    .preview-box {
-      width: 60px;
-      height: 60px;
-      background: #18A0FB;
-      margin: 0 auto 12px;
-      border-radius: 8px;
-      transition: transform 0.3s;
-    }
-    .preview-box:hover {
-      transform: scale(1.05);
-    }
-    .preview-element {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      z-index: 1000;
-    }
-    .preview-content {
-      width: 60px;
-      height: 60px;
-      background: #18A0FB;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .tooltip {
-      position: relative;
-      display: inline-block;
-      margin-left: 4px;
-      color: #999;
-    }
-    .tooltip:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 4px 8px;
-      background: #333;
-      color: white;
-      font-size: 11px;
-      border-radius: 4px;
-      white-space: nowrap;
-      z-index: 1002;
-    }
-    .error-message {
-      color: #e34850;
-      font-size: 11px;
-      margin: 4px 0;
-      display: none;
-    }
-    .error .error-message {
-      display: block;
+      background: #fff5f5;
     }
   </style>
 </head>
 <body>
+  <div id="error-state" class="error-state">
+    Failed to initialize plugin. Please try reloading.
+  </div>
   <div id="app">
-    <!-- Add loading indicator -->
     <div id="loading">Initializing Animation Library Manager...</div>
-    <div id="error-state" class="error-state">
-      Failed to initialize plugin. Please try reloading.
-    </div>
   </div>
   <script>
-    // Error handler for script loading
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nError: ' + error);
+      console.error('Error:', msg);
       const errorState = document.getElementById('error-state');
       const loading = document.getElementById('loading');
       if (errorState && loading) {
@@ -190,21 +51,6 @@
       }
       return false;
     };
-    window.addEventListener('load', function() {
-      try {
-        const app = document.getElementById('app');
-        if (app) {
-          // Remove loading indicator when UI is ready
-          const loading = document.getElementById('loading');
-          if (loading) {
-            loading.remove();
-          }
-          app.classList.add('loaded');
-        }
-      } catch (error) {
-        console.error('Error in window load handler:', error);
-      }
-    });
   </script>
   <script src="build/ui.js"></script>
 </body>
