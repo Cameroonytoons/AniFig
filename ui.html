@@ -196,7 +196,7 @@
 <body>
   <div id="error-state" class="error-state">
     <h3>Error</h3>
-    <p>Failed to initialize plugin. Please try reloading.</p>
+    <p></p>
   </div>
 
   <div id="app">
@@ -211,6 +211,9 @@
     const MAX_RETRIES = 5;
     let retryCount = 0;
     let loadingTimeout = null;
+    let initializationAttempts = 0;
+    const MAX_INIT_ATTEMPTS = 3;
+    const INIT_TIMEOUT = 10000; // 10 seconds per attempt
 
     function showError(message, details) {
         console.error('Error occurred:', message, details);
@@ -236,6 +239,12 @@
         if (loading) {
             loading.style.display = 'none';
         }
+
+        // Attempt retry if within limits
+        if (initializationAttempts < MAX_INIT_ATTEMPTS) {
+            console.log(`Retrying initialization (${initializationAttempts + 1}/${MAX_INIT_ATTEMPTS})`);
+            setTimeout(retryInitialization, 2000);
+        }
     }
 
     function updateLoadingStatus(message, details) {
@@ -251,7 +260,47 @@
         }
     }
 
+    async function retryInitialization() {
+        initializationAttempts++;
+        updateLoadingStatus(
+            'Retrying initialization...',
+            `Attempt ${initializationAttempts} of ${MAX_INIT_ATTEMPTS}`
+        );
+
+        try {
+            await initializeUI();
+        } catch (error) {
+            console.error(`Initialization attempt ${initializationAttempts} failed:`, error);
+            if (initializationAttempts >= MAX_INIT_ATTEMPTS) {
+                showError(
+                    'Failed to initialize plugin',
+                    `Maximum retry attempts (${MAX_INIT_ATTEMPTS}) exceeded. Please reload the plugin.`
+                );
+            }
+        }
+    }
+
+    async function initializeUI() {
+        updateLoadingStatus('Starting UI initialization...');
+
+        if (window.UI) {
+            try {
+                console.log('Initializing UI instance');
+                window.UI.getInstance();
+                console.log('UI initialized successfully');
+                updateLoadingStatus('Plugin initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('UI initialization error:', error);
+                throw error;
+            }
+        } else {
+            throw new Error('UI module not found');
+        }
+    }
+
     async function getPluginResourcePath(filename) {
+        console.log('Resolving resource path for:', filename);
         try {
             const scripts = document.getElementsByTagName('script');
             const currentScript = scripts[scripts.length - 1];
@@ -267,7 +316,7 @@
             console.log('Base URL from location:', baseUrl);
             return `${baseUrl}/${filename}`;
         } catch (error) {
-            console.error('Error getting resource path:', error);
+            console.error('Error resolving resource path:', error);
             return filename;
         }
     }
@@ -280,7 +329,7 @@
         while (retryCount < maxRetries) {
             try {
                 const scriptPath = await getPluginResourcePath(filename);
-                console.log('Attempting to load script from:', scriptPath);
+                console.log('Loading script from:', scriptPath);
 
                 return new Promise((resolve, reject) => {
                     const script = document.createElement('script');
@@ -293,7 +342,7 @@
                         const error = new Error(`Script load timed out: ${filename}`);
                         console.error('Script load timeout:', error);
                         reject(error);
-                    }, 10000);
+                    }, INIT_TIMEOUT);
 
                     script.onload = () => {
                         clearTimeout(timeoutId);
@@ -309,8 +358,10 @@
                         if (++retryCount < maxRetries) {
                             console.log(`Retrying script load (${retryCount}/${maxRetries})`);
                             const delay = Math.min(1000 * Math.pow(2, retryCount), maxDelay);
-                            updateLoadingStatus('Retrying script load...', 
-                                `Attempt ${retryCount + 1} of ${maxRetries}`);
+                            updateLoadingStatus(
+                                'Retrying script load...',
+                                `Attempt ${retryCount + 1} of ${maxRetries}`
+                            );
                             await new Promise(resolve => setTimeout(resolve, delay));
                             try {
                                 await loadScript(filename);
@@ -344,14 +395,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('DOM Content Loaded, starting initialization');
 
-        loadingTimeout = setTimeout(() => {
-            console.error('Plugin initialization timeout triggered');
-            showError(
-                'Plugin initialization timed out',
-                'The plugin took too long to load. Please check your connection and reload.'
-            );
-        }, 30000);
-
         try {
             updateLoadingStatus('Starting initialization...');
             console.log('Loading UI bundle...');
@@ -361,26 +404,7 @@
                 console.log('UI bundle loaded successfully');
                 updateLoadingStatus('UI loaded', 'Initializing plugin...');
 
-                if (!window.UI) {
-                    const error = new Error('UI module not found after script load');
-                    console.error('UI module missing:', error);
-                    throw error;
-                }
-
-                if (loadingTimeout) {
-                    clearTimeout(loadingTimeout);
-                    loadingTimeout = null;
-                }
-
-                try {
-                    console.log('Initializing UI instance');
-                    window.UI.getInstance();
-                    console.log('UI initialized successfully');
-                    updateLoadingStatus('Plugin initialized successfully');
-                } catch (initError) {
-                    console.error('UI initialization error:', initError);
-                    throw new Error(`UI initialization failed: ${initError.message}`);
-                }
+                await initializeUI();
 
             } catch (error) {
                 console.error('Script loading error:', error);
