@@ -1,0 +1,29 @@
+# Build output
+build/
+dist/
+*.js.map
+
+# Dependencies
+node_modules/
+
+# IDE files
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Replit specific
+.replit
+.config/
+.upm/
