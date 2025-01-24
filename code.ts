@@ -1,10 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 import { AnimationPreset, Message } from './src/types';
 
-// Add canvas performance hint
-const canvas = document.createElement('canvas');
-canvas.setAttribute('willReadFrequently', 'true');
-
 figma.showUI(__html__, { width: 320, height: 480 });
 
 let animationStore: { [key: string]: AnimationPreset } = {};
@@ -83,33 +79,27 @@ figma.ui.onmessage = async (msg: Message) => {
 async function applyAnimation(node: SceneNode & { opacity?: number, x?: number, rotation?: number }, animation: AnimationPreset) {
   const { duration, easing, properties } = animation;
 
-  // Store the animation data
   node.setPluginData('animationProps', JSON.stringify({
     duration,
     easing,
     properties
   }));
 
-  // Remove any existing transition controllers
   const existingControllers = figma.currentPage.findAll(n => 
     n.getPluginData('targetNode') === node.id
   );
   existingControllers.forEach(n => n.remove());
 
-  // Apply initial properties based on animation type
   for (const [key, value] of Object.entries(properties)) {
     if (key in node) {
-      // Set initial state
       (node as any)[key] = value.from;
 
-      // Create transition controller
       const transition = figma.createFrame();
       transition.name = `${node.name}-transition`;
       transition.resize(1, 1);
       transition.opacity = 0;
       transition.locked = true;
 
-      // Add transition data
       transition.setPluginData('animationType', key);
       transition.setPluginData('targetNode', node.id);
       transition.setPluginData('animationStart', value.from.toString());
@@ -117,18 +107,15 @@ async function applyAnimation(node: SceneNode & { opacity?: number, x?: number, 
       transition.setPluginData('duration', duration.toString());
       transition.setPluginData('easing', easing);
 
-      // Position the transition controller near the target node
       if ('absoluteTransform' in node) {
         const nodeTransform = node.absoluteTransform;
-        transition.x = nodeTransform[0][2];  // Use transform matrix for absolute position
+        transition.x = nodeTransform[0][2];
         transition.y = nodeTransform[1][2] - 20;
       } else {
-        // Fallback positioning if transform isn't available
         transition.x = 0;
         transition.y = 0;
       }
 
-      // Enable relaunch button with a descriptive tooltip
       node.setRelaunchData({ 
         animate: `Play ${animation.type} animation (${duration}ms ${easing})`
       });
@@ -177,12 +164,10 @@ async function updateSharedAnimations(name: string, properties: AnimationPreset)
       animationStore = stored as { [key: string]: AnimationPreset };
     }
 
-    // Register plugin command handlers
     figma.on('run', () => {
       console.log('Plugin started');
     });
 
-    // Handle relaunch button clicks
     figma.once('selectionchange', () => {
       const nodes = figma.currentPage.selection;
       nodes.forEach(node => {

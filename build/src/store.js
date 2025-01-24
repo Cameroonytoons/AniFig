@@ -3,11 +3,21 @@ export class Store {
         this.animations = new Map();
     }
     async init() {
-        const stored = await figma.clientStorage.getAsync('animations');
-        if (stored) {
-            Object.entries(stored).forEach(([key, value]) => {
-                this.animations.set(key, value);
-            });
+        try {
+            console.log('Initializing Store');
+            const stored = await figma.clientStorage.getAsync('animations');
+            console.log('Retrieved stored animations:', stored ? 'Found' : 'None');
+            if (stored) {
+                Object.entries(stored).forEach(([key, value]) => {
+                    console.log(`Loading animation: ${key}`);
+                    this.animations.set(key, value);
+                });
+            }
+            console.log('Store initialization completed');
+        }
+        catch (error) {
+            console.error('Error initializing store:', error);
+            throw error;
         }
     }
     getAnimation(name) {

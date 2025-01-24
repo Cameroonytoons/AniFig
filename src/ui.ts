@@ -4,24 +4,60 @@ import { generateAnimationCSS } from './utils';
 
 class UI {
   private store: Store;
-  private container: HTMLElement;
+  private container: HTMLElement | null = null;
   private previewElement: HTMLElement | null = null;
   private currentAnimation: string | null = null;
   private searchInput: HTMLInputElement | null = null;
 
   constructor() {
+    console.log('UI Constructor initialized');
     this.store = new Store();
-    this.container = document.getElementById('app')!;
-    this.init();
+    this.initializeDOMAfterLoad();
   }
 
-  private async init() {
-    await this.store.init();
-    this.renderCreateForm();
-    this.renderAnimationList();
-    this.setupMessageHandlers();
-    this.updateAnimationList();
-    this.createPreviewElement();
+  private async initializeDOMAfterLoad() {
+    console.log('DOM Load State:', document.readyState);
+    if (document.readyState === 'loading') {
+      console.log('Waiting for DOMContentLoaded event');
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded event fired');
+        this.initialize();
+      });
+    } else {
+      console.log('DOM already loaded, initializing directly');
+      await this.initialize();
+    }
+  }
+
+  private async initialize() {
+    try {
+      console.log('Starting UI initialization');
+
+      // Wait for document to be ready
+      if (!document || !document.body) {
+        console.error('Document or body not available');
+        return;
+      }
+
+      this.container = document.getElementById('app');
+      if (!this.container) {
+        console.error('Could not find app container element');
+        return;
+      }
+
+      await this.store.init();
+      console.log('Store initialized successfully');
+
+      this.renderCreateForm();
+      this.renderAnimationList();
+      this.setupMessageHandlers();
+      this.updateAnimationList();
+      this.createPreviewElement();
+
+      console.log('UI initialization completed');
+    } catch (error) {
+      console.error('Error during UI initialization:', error);
+    }
   }
 
   private renderCreateForm() {
@@ -164,7 +200,7 @@ class UI {
       this.previewAnimation(animation);
     });
 
-    this.container.appendChild(form);
+    this.container!.appendChild(form);
   }
 
   private renderAnimationList() {
@@ -209,7 +245,7 @@ class UI {
       }, '*');
     });
 
-    this.container.appendChild(list);
+    this.container!.appendChild(list);
   }
 
   private updateAnimationList(searchQuery: string = '') {
@@ -270,17 +306,32 @@ class UI {
   private createPreviewElement() {
     if (this.previewElement) return;
 
+    // Create preview container
     this.previewElement = document.createElement('div');
     this.previewElement.className = 'preview-element';
 
-    // Add canvas with willReadFrequently attribute
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('willReadFrequently', 'true');
-    canvas.className = 'preview-canvas';
+    // Create preview content
+    const content = document.createElement('div');
+    content.className = 'preview-content';
+    this.previewElement.appendChild(content);
 
-    this.previewElement.innerHTML = '<div class="preview-content"></div>';
-    this.previewElement.appendChild(canvas);
-    document.body.appendChild(this.previewElement);
+    // Create and configure canvas with performance attributes
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('willReadFrequently', 'true');
+      canvas.className = 'preview-canvas';
+      this.previewElement.appendChild(canvas);
+    } catch (error) {
+      console.warn('Canvas creation failed:', error);
+      // Continue without canvas as it's not critical for core functionality
+    }
+
+    // Append to document only after all elements are configured
+    if (document.body) {
+      document.body.appendChild(this.previewElement);
+    } else {
+      console.warn('Document body not available for preview element');
+    }
   }
 
   private previewAnimation(animation: AnimationPreset | string) {
@@ -364,8 +415,17 @@ class UI {
       dialog.remove();
     });
 
-    this.container.appendChild(dialog);
+    this.container!.appendChild(dialog);
   }
 }
 
-new UI();
+// Initialize UI only after the document is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded event listener triggered');
+    new UI();
+  });
+} else {
+  console.log('Document already loaded, initializing UI');
+  new UI();
+}

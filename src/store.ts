@@ -4,11 +4,22 @@ export class Store {
   private animations: Map<string, AnimationPreset & { description?: string; group?: string }> = new Map();
 
   async init() {
-    const stored = await figma.clientStorage.getAsync('animations');
-    if (stored) {
-      Object.entries(stored).forEach(([key, value]) => {
-        this.animations.set(key, value as AnimationPreset);
-      });
+    try {
+      console.log('Initializing Store');
+      const stored = await figma.clientStorage.getAsync('animations');
+      console.log('Retrieved stored animations:', stored ? 'Found' : 'None');
+
+      if (stored) {
+        Object.entries(stored).forEach(([key, value]) => {
+          console.log(`Loading animation: ${key}`);
+          this.animations.set(key, value as AnimationPreset);
+        });
+      }
+
+      console.log('Store initialization completed');
+    } catch (error) {
+      console.error('Error initializing store:', error);
+      throw error;
     }
   }
 
@@ -62,7 +73,7 @@ export class Store {
   searchAnimations(query: string): [string, AnimationPreset][] {
     const lowercaseQuery = query.toLowerCase();
     return Array.from(this.animations.entries())
-      .filter(([name, preset]) => 
+      .filter(([name, preset]) =>
         name.toLowerCase().includes(lowercaseQuery) ||
         preset.description?.toLowerCase().includes(lowercaseQuery) ||
         preset.group?.toLowerCase().includes(lowercaseQuery)

@@ -1,8 +1,6 @@
 "use strict";
 
 // code.ts
-var canvas = document.createElement("canvas");
-canvas.setAttribute("willReadFrequently", "true");
 figma.showUI(__html__, { width: 320, height: 480 });
 var animationStore = {};
 figma.ui.onmessage = async (msg) => {
