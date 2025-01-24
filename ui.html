@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       font: 12px sans-serif;
@@ -170,7 +172,6 @@
     <div id="loading">Initializing Animation Library Manager...</div>
   </div>
   <script>
-    // Enhanced error handling
     window.onerror = function(msg, url, lineNo, columnNo, error) {
       console.error('Error:', msg, 'at', lineNo, ':', columnNo);
       console.error('Stack:', error?.stack);
@@ -183,18 +184,36 @@
       return false;
     };
 
+    function loadScript() {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'build/ui.js';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => {
+          const errorState = document.getElementById('error-state');
+          if (errorState) {
+            errorState.style.display = 'block';
+          }
+          reject(new Error('Failed to load UI script'));
+        };
+        document.body.appendChild(script);
+      });
+    }
+
     // Wait for DOM to be fully loaded before initializing UI
-    document.addEventListener('DOMContentLoaded', function() {
-      // Create and append the UI script
-      const script = document.createElement('script');
-      script.src = 'build/ui.js';
-      script.onerror = function() {
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await loadScript();
+        console.log('UI script loaded successfully');
+      } catch (error) {
+        console.error('Failed to load UI:', error);
         const errorState = document.getElementById('error-state');
         if (errorState) {
           errorState.style.display = 'block';
         }
-      };
-      document.body.appendChild(script);
+      }
     });
   </script>
 </body>

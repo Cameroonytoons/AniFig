@@ -31,7 +31,7 @@ args = """
 
     mkdir -p build && 
     npx tsc &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --outfile=build/ui.js &&
+    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --outfile=build/ui.js &&
     npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js
     """
 
@@ -40,6 +40,6 @@ run = ["sh", "-c", """
 
     mkdir -p build && 
     npx tsc &&
-    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --outfile=build/ui.js &&
+    npx esbuild src/ui.ts --bundle --platform=browser --target=es2019 --format=iife --outfile=build/ui.js &&
     npx esbuild code.ts --bundle --platform=node --target=es2019 --outfile=build/code.js
     """]
